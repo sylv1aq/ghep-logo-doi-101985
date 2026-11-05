@@ -11,3 +11,4 @@ echo Ung dung da duoc mo! Ban co the keo tha anh va logo vao de xu ly ngay.
 echo.
 timeout /t 3 >nul
 exit
+

@@ -1,173 +1,74 @@
 /**
- * Watermark Studio Pro - Main Application Logic
- * Fast, Client-Side, High-Performance Batch Processing
+ * Đội Tình Nguyện 10/1985 - Watermark Studio App Logic
+ * Xử lý hình ảnh hàng loạt trực tiếp trên trình duyệt máy tính & điện thoại
  */
 
 (function () {
   'use strict';
 
+  const DEFAULT_LOGO_PATH = 'assets/logo-doi.png';
+
   // --- Initial State ---
   const state = {
     photos: [],
     currentIndex: 0,
-    zoom: 'fit', // 'fit' or number e.g. 1
     showOriginal: false,
     isExporting: false,
-    
-    // Logo image instance
     logoImg: null,
     
-    // Watermark configuration
+    // Cấu hình watermark chuẩn của Đội
     watermark: {
-      type: 'image', // 'image' or 'text'
-      colorFilter: 'original', // 'original', 'white', 'black', 'tint'
-      tintColor: '#ffffff',
-      scaleMode: 'proportional', // 'proportional', 'fit', 'fill', 'fixed'
-      scale: 16, // % of photo width
-      anchor: 'br', // 'tl', 'tc', 'tr', 'ml', 'mc', 'mr', 'bl', 'bc', 'br'
-      insetX: 3, // % inset
-      insetY: 3, // % inset
-      opacity: 85, // 0 - 100
-      rotation: 0, // -180 to 180
-      blendMode: 'source-over',
-      shadow: {
-        enabled: true,
-        color: 'rgba(0, 0, 0, 0.65)',
-        blur: 5,
-        offsetX: 2,
-        offsetY: 2
-      },
-      tiled: {
-        enabled: false,
-        spacing: 22,
-        angle: -30
-      },
+      scale: 18, // 18% kích thước ảnh
+      anchor: 'tc', // ⭐ Ở giữa, trên cùng
+      insetX: 0,
+      insetY: 3.5, // 3.5% khoảng cách từ mép trên
+      rotation: 0,
       customOffset: {
         enabled: false,
         xRatio: 0,
         yRatio: 0
-      },
-      // Text options
-      text: '© PHOTOGRAPHY STUDIO',
-      fontFamily: 'Inter',
-      bold: true,
-      italic: false,
-      textColor: '#ffffff',
-      stroke: {
-        enabled: true,
-        color: '#000000',
-        width: 2
-      },
-      bgBox: {
-        enabled: false,
-        color: 'rgba(0, 0, 0, 0.55)',
-        radius: 6
       }
     },
 
-    // Export options
+    // Cấu hình xuất ảnh
     exportSettings: {
       format: 'image/jpeg',
       quality: 92,
-      resizeMode: 'original', // 'original', 'max_edge', 'scale_pct'
+      resizeMode: 'original',
       maxEdge: 2048,
       scalePct: 80,
-      namingPattern: '{name}_watermarked'
+      namingPattern: '{name}_doi1085'
     },
 
-    // Presets list
     presets: []
   };
 
-  // --- Default Presets ---
+  // --- Mẫu thiết lập sẵn cho Đội ---
   const defaultPresets = [
     {
+      id: 'default-tc',
+      name: '⭐ Chuẩn Đội: Giữa - Trên cùng (18%)',
+      config: { anchor: 'tc', scale: 18, insetX: 0, insetY: 3.5, rotation: 0 }
+    },
+    {
       id: 'default-br',
-      name: 'Góc Dưới Phải (Chuẩn Lightroom)',
-      config: {
-        type: 'image',
-        anchor: 'br',
-        scale: 16,
-        insetX: 3,
-        insetY: 3,
-        opacity: 85,
-        rotation: 0,
-        colorFilter: 'original',
-        blendMode: 'source-over',
-        tiled: { enabled: false },
-        shadow: { enabled: true, color: 'rgba(0,0,0,0.65)', blur: 5, offsetX: 2, offsetY: 2 }
-      }
+      name: 'Góc Dưới - Phải (16%)',
+      config: { anchor: 'br', scale: 16, insetX: 3, insetY: 3, rotation: 0 }
     },
     {
       id: 'default-bl',
-      name: 'Góc Dưới Trái (Logo Trắng)',
-      config: {
-        type: 'image',
-        anchor: 'bl',
-        scale: 15,
-        insetX: 3,
-        insetY: 3,
-        opacity: 90,
-        rotation: 0,
-        colorFilter: 'white',
-        blendMode: 'source-over',
-        tiled: { enabled: false },
-        shadow: { enabled: true, color: 'rgba(0,0,0,0.7)', blur: 6, offsetX: 2, offsetY: 2 }
-      }
+      name: 'Góc Dưới - Trái (16%)',
+      config: { anchor: 'bl', scale: 16, insetX: 3, insetY: 3, rotation: 0 }
+    },
+    {
+      id: 'default-tr',
+      name: 'Góc Trên - Phải (16%)',
+      config: { anchor: 'tr', scale: 16, insetX: 3, insetY: 3, rotation: 0 }
     },
     {
       id: 'default-center',
-      name: 'Chính Giữa Chống Trộm (Mờ 35%)',
-      config: {
-        type: 'image',
-        anchor: 'mc',
-        scale: 35,
-        insetX: 0,
-        insetY: 0,
-        opacity: 35,
-        rotation: 0,
-        colorFilter: 'original',
-        blendMode: 'source-over',
-        tiled: { enabled: false },
-        shadow: { enabled: false }
-      }
-    },
-    {
-      id: 'default-tile',
-      name: 'Lưới Caro Toàn Màn Hình (Tiled Protection)',
-      config: {
-        type: 'image',
-        anchor: 'mc',
-        scale: 15,
-        opacity: 25,
-        rotation: 0,
-        colorFilter: 'white',
-        blendMode: 'source-over',
-        tiled: { enabled: true, spacing: 22, angle: -30 },
-        shadow: { enabled: false }
-      }
-    },
-    {
-      id: 'default-signature',
-      name: 'Chữ Ký Nghệ Thuật (Signature Text)',
-      config: {
-        type: 'text',
-        text: 'Photography by Minh',
-        fontFamily: 'Playfair Display',
-        bold: false,
-        italic: true,
-        textColor: '#f3f4f6',
-        anchor: 'br',
-        scale: 18,
-        insetX: 4,
-        insetY: 4,
-        opacity: 90,
-        rotation: 0,
-        stroke: { enabled: true, color: '#111111', width: 2 },
-        bgBox: { enabled: false },
-        tiled: { enabled: false },
-        shadow: { enabled: true, color: 'rgba(0,0,0,0.6)', blur: 6, offsetX: 2, offsetY: 2 }
-      }
+      name: 'Logo Lớn Chính Giữa (30%)',
+      config: { anchor: 'mc', scale: 30, insetX: 0, insetY: 0, rotation: 0 }
     }
   ];
 
@@ -183,76 +84,50 @@
     DOM.interactiveBox = document.getElementById('watermark-interactive-box');
     DOM.filmstripContainer = document.getElementById('filmstrip-container');
     DOM.filmstripItems = document.getElementById('filmstrip-items');
-    
-    // Toolbars & Status
+
+    // Header & Toolbars
     DOM.currentFilename = document.getElementById('current-filename');
     DOM.currentDim = document.getElementById('current-dim');
     DOM.photoCountBadge = document.getElementById('photo-count-badge');
-    DOM.zoomLevelBadge = document.getElementById('zoom-level-badge');
-    DOM.btnLoadDemo = document.getElementById('btn-load-demo');
-    DOM.btnZoomIn = document.getElementById('btn-zoom-in');
-    DOM.btnZoomOut = document.getElementById('btn-zoom-out');
-    DOM.btnZoomFit = document.getElementById('btn-zoom-fit');
-    DOM.btnBeforeAfter = document.getElementById('btn-before-after');
     DOM.btnPrevPhoto = document.getElementById('btn-prev-photo');
     DOM.btnNextPhoto = document.getElementById('btn-next-photo');
+    DOM.btnBeforeAfter = document.getElementById('btn-before-after');
+    DOM.btnLoadDemo = document.getElementById('btn-load-demo');
 
-    // Preset dropdown
+    // Preset Picker
     DOM.presetSelect = document.getElementById('preset-select');
     DOM.btnSavePreset = document.getElementById('btn-save-preset');
-    DOM.btnDeletePreset = document.getElementById('btn-delete-preset');
 
-    // Logo & Type controls
-    DOM.btnTabImage = document.getElementById('btn-tab-image');
-    DOM.btnTabText = document.getElementById('btn-tab-text');
-    DOM.groupImageControls = document.getElementById('group-image-controls');
-    DOM.groupTextControls = document.getElementById('group-text-controls');
-    DOM.logoInput = document.getElementById('logo-input');
-    DOM.logoDropzone = document.getElementById('logo-dropzone');
+    // Logo elements
     DOM.logoThumbImg = document.getElementById('logo-thumb-img');
-    DOM.logoName = document.getElementById('logo-name');
     DOM.logoDim = document.getElementById('logo-dim');
-    DOM.logoFilterSelect = document.getElementById('logo-filter-select');
-    DOM.tintColorRow = document.getElementById('tint-color-row');
-    DOM.tintColorPicker = document.getElementById('tint-color-picker');
+    DOM.logoInput = document.getElementById('logo-input');
+    DOM.btnResetDefaultLogo = document.getElementById('btn-reset-default-logo');
 
-    // Text controls
-    DOM.textInput = document.getElementById('text-input');
-    DOM.fontSelect = document.getElementById('font-select');
-    DOM.btnFontBold = document.getElementById('btn-font-bold');
-    DOM.btnFontItalic = document.getElementById('btn-font-italic');
-    DOM.textColorPicker = document.getElementById('text-color-picker');
-    DOM.toggleStroke = document.getElementById('toggle-stroke');
-    DOM.toggleBgBox = document.getElementById('toggle-bg-box');
-
-    // Sliders & Values
+    // Size Slider & Quick buttons
     DOM.sliderScale = document.getElementById('slider-scale');
-    DOM.valScale = document.getElementById('val-scale');
-    DOM.sliderOpacity = document.getElementById('slider-opacity');
-    DOM.valOpacity = document.getElementById('val-opacity');
-    DOM.sliderInsetX = document.getElementById('slider-inset-x');
-    DOM.valInsetX = document.getElementById('val-inset-x');
-    DOM.sliderInsetY = document.getElementById('slider-inset-y');
-    DOM.valInsetY = document.getElementById('val-inset-y');
-    DOM.sliderRotation = document.getElementById('slider-rotation');
-    DOM.valRotation = document.getElementById('val-rotation');
-    DOM.scaleModeSelect = document.getElementById('scale-mode-select');
-    DOM.blendModeSelect = document.getElementById('blend-mode-select');
-    DOM.toggleShadow = document.getElementById('toggle-shadow');
-    DOM.toggleTiled = document.getElementById('toggle-tiled');
-    DOM.groupTiledControls = document.getElementById('group-tiled-controls');
-    DOM.sliderTiledSpacing = document.getElementById('slider-tiled-spacing');
-    DOM.valTiledSpacing = document.getElementById('val-tiled-spacing');
+    DOM.valScaleBadge = document.getElementById('val-scale-badge');
+    DOM.quickScaleBtns = document.querySelectorAll('.quick-btn');
 
-    // Anchor Grid Cells
+    // Position controls
     DOM.anchorCells = document.querySelectorAll('.anchor-cell');
+    DOM.posPills = document.querySelectorAll('.pos-pill');
+    DOM.sliderInsetY = document.getElementById('slider-inset-y');
+    DOM.valInsetYBadge = document.getElementById('val-inset-y-badge');
+    DOM.sliderInsetX = document.getElementById('slider-inset-x');
+    DOM.valInsetXBadge = document.getElementById('val-inset-x-badge');
 
-    // File Inputs
+    // Rotation
+    DOM.sliderRotation = document.getElementById('slider-rotation');
+    DOM.valRotationBadge = document.getElementById('val-rotation-badge');
+    DOM.rotBtns = document.querySelectorAll('.rot-btn');
+
+    // Photos file input
     DOM.photosInput = document.getElementById('photos-input');
     DOM.btnAddPhotos = document.getElementById('btn-add-photos');
     DOM.btnClearPhotos = document.getElementById('btn-clear-photos');
 
-    // Export Buttons & Modals
+    // Export Modals & Buttons
     DOM.btnExportBatch = document.getElementById('btn-export-batch');
     DOM.btnExportCurrent = document.getElementById('btn-export-current');
     DOM.exportModal = document.getElementById('export-modal');
@@ -263,8 +138,6 @@
     DOM.valQuality = document.getElementById('val-quality');
     DOM.qualityRow = document.getElementById('quality-row');
     DOM.exportResize = document.getElementById('export-resize');
-    DOM.exportResizeMaxEdge = document.getElementById('export-resize-maxedge');
-    DOM.maxEdgeRow = document.getElementById('max-edge-row');
     DOM.exportNaming = document.getElementById('export-naming');
 
     // Progress Modal
@@ -279,90 +152,32 @@
   function init() {
     initDOMElements();
     loadPresets();
-    generateDefaultSampleLogo();
+    loadDefaultTeamLogo();
     bindEvents();
     renderPresetDropdown();
     updateUIFromConfig();
     updatePhotoQueueState();
   }
 
-  // --- Built-in Sample Logo Generator (Vector Camera + Studio Badge) ---
-  function generateDefaultSampleLogo() {
-    const canvas = document.createElement('canvas');
-    canvas.width = 440;
-    canvas.height = 160;
-    const ctx = canvas.getContext('2d');
-
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-    // Modern Camera Icon
-    const cx = 70;
-    const cy = 80;
-    ctx.strokeStyle = '#ffffff';
-    ctx.lineWidth = 4;
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round';
-
-    // Camera body
-    WatermarkEngine.drawRoundedRect(ctx, cx - 44, cy - 30, 88, 62, 10);
-    ctx.stroke();
-
-    // Camera top lens bump
-    ctx.beginPath();
-    ctx.moveTo(cx - 16, cy - 30);
-    ctx.lineTo(cx - 10, cy - 42);
-    ctx.lineTo(cx + 10, cy - 42);
-    ctx.lineTo(cx + 16, cy - 30);
-    ctx.stroke();
-
-    // Lens circle
-    ctx.beginPath();
-    ctx.arc(cx, cy + 2, 22, 0, Math.PI * 2);
-    ctx.stroke();
-
-    // Inner aperture
-    ctx.fillStyle = '#ffffff';
-    ctx.beginPath();
-    ctx.arc(cx, cy + 2, 9, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Small flash dot
-    ctx.beginPath();
-    ctx.arc(cx + 26, cy - 16, 3, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Typography
-    ctx.fillStyle = '#ffffff';
-    ctx.font = '700 24px "Inter", sans-serif';
-    ctx.fillText('PHOTOGRAPHY', 145, 68);
-
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.75)';
-    ctx.font = '500 13px "Inter", sans-serif';
-    ctx.letterSpacing = '3px';
-    ctx.fillText('STUDIO & GALLERY', 146, 96);
-
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.35)';
-    ctx.lineWidth = 1.5;
-    ctx.beginPath();
-    ctx.moveTo(145, 78);
-    ctx.lineTo(380, 78);
-    ctx.stroke();
-
-    const dataUrl = canvas.toDataURL('image/png');
+  // --- Load Team Logo ---
+  function loadDefaultTeamLogo() {
     const img = new Image();
-    img.src = dataUrl;
+    img.src = DEFAULT_LOGO_PATH;
     img.onload = () => {
       state.logoImg = img;
-      if (DOM.logoThumbImg) DOM.logoThumbImg.src = dataUrl;
-      if (DOM.logoName) DOM.logoName.textContent = 'Mẫu Logo Mặc Định (Studio)';
-      if (DOM.logoDim) DOM.logoDim.textContent = `${img.naturalWidth} × ${img.naturalHeight}px`;
+      if (DOM.logoThumbImg) DOM.logoThumbImg.src = DEFAULT_LOGO_PATH;
+      if (DOM.logoDim) DOM.logoDim.textContent = `${img.naturalWidth} × ${img.naturalHeight}px (Đã cắt viền)`;
       renderPreview();
+    };
+    img.onerror = () => {
+      // Fallback nếu chạy ở môi trường đặc biệt
+      console.warn('Không thể tải logo từ path, kiểm tra thư mục assets');
     };
   }
 
-  // --- Preset System ---
+  // --- Presets Management ---
   function loadPresets() {
-    const saved = localStorage.getItem('lightmark_presets');
+    const saved = localStorage.getItem('doi1085_presets');
     if (saved) {
       try {
         state.presets = JSON.parse(saved);
@@ -376,41 +191,27 @@
   }
 
   function savePresetsToStorage() {
-    localStorage.setItem('lightmark_presets', JSON.stringify(state.presets));
+    localStorage.setItem('doi1085_presets', JSON.stringify(state.presets));
   }
 
   function renderPresetDropdown() {
     DOM.presetSelect.innerHTML = '';
-    const groupDefault = document.createElement('optgroup');
-    groupDefault.label = 'Mẫu Mặc Định';
-    const groupCustom = document.createElement('optgroup');
-    groupCustom.label = 'Mẫu Đã Lưu Của Bạn';
-
     state.presets.forEach(p => {
       const opt = document.createElement('option');
       opt.value = p.id;
       opt.textContent = p.name;
-      if (p.id.startsWith('default-')) {
-        groupDefault.appendChild(opt);
-      } else {
-        groupCustom.appendChild(opt);
-      }
+      DOM.presetSelect.appendChild(opt);
     });
-
-    DOM.presetSelect.appendChild(groupDefault);
-    if (groupCustom.children.length > 0) {
-      DOM.presetSelect.appendChild(groupCustom);
-    }
   }
 
   function applyPreset(presetId) {
     const found = state.presets.find(p => p.id === presetId);
     if (!found) return;
 
-    // Deep merge configuration
     state.watermark = {
       ...state.watermark,
-      ...JSON.parse(JSON.stringify(found.config))
+      ...JSON.parse(JSON.stringify(found.config)),
+      customOffset: { enabled: false, xRatio: 0, yRatio: 0 }
     };
 
     updateUIFromConfig();
@@ -418,7 +219,7 @@
   }
 
   function saveCurrentAsPreset() {
-    const name = prompt('Nhập tên cho mẫu Watermark mới:', `Mẫu thiết lập ${state.presets.length + 1}`);
+    const name = prompt('Nhập tên cho mẫu thiết lập mới của Đội:', `Mẫu của tôi ${state.presets.length + 1}`);
     if (!name || !name.trim()) return;
 
     const newPreset = {
@@ -433,82 +234,36 @@
     DOM.presetSelect.value = newPreset.id;
   }
 
-  function deleteCurrentPreset() {
-    const currentId = DOM.presetSelect.value;
-    if (currentId.startsWith('default-')) {
-      alert('Không thể xóa mẫu mặc định của hệ thống.');
-      return;
-    }
-
-    if (confirm('Bạn có chắc chắn muốn xóa mẫu này?')) {
-      state.presets = state.presets.filter(p => p.id !== currentId);
-      savePresetsToStorage();
-      renderPresetDropdown();
-      applyPreset(state.presets[0].id);
-    }
-  }
-
-  // --- Synchronize UI Elements with Config State ---
+  // --- Update UI Controls from State ---
   function updateUIFromConfig() {
     const wm = state.watermark;
 
-    // Type tab
-    if (wm.type === 'image') {
-      DOM.btnTabImage.classList.add('active');
-      DOM.btnTabText.classList.remove('active');
-      DOM.groupImageControls.style.display = 'flex';
-      DOM.groupTextControls.style.display = 'none';
-    } else {
-      DOM.btnTabImage.classList.remove('active');
-      DOM.btnTabText.classList.add('active');
-      DOM.groupImageControls.style.display = 'none';
-      DOM.groupTextControls.style.display = 'flex';
-    }
-
-    // Logo filter
-    DOM.logoFilterSelect.value = wm.colorFilter || 'original';
-    DOM.tintColorRow.style.display = wm.colorFilter === 'tint' ? 'flex' : 'none';
-    if (wm.tintColor) DOM.tintColorPicker.value = wm.tintColor;
-
-    // Text inputs
-    DOM.textInput.value = wm.text;
-    DOM.fontSelect.value = wm.fontFamily;
-    DOM.btnFontBold.style.backgroundColor = wm.bold ? 'var(--accent)' : 'var(--bg-input)';
-    DOM.btnFontItalic.style.backgroundColor = wm.italic ? 'var(--accent)' : 'var(--bg-input)';
-    DOM.textColorPicker.value = wm.textColor;
-    DOM.toggleStroke.checked = wm.stroke.enabled;
-    DOM.toggleBgBox.checked = wm.bgBox.enabled;
-
-    // Sliders
+    // Scale slider & badge
     DOM.sliderScale.value = wm.scale;
-    DOM.valScale.value = wm.scale;
-    DOM.sliderOpacity.value = wm.opacity;
-    DOM.valOpacity.value = wm.opacity;
-    DOM.sliderInsetX.value = wm.insetX;
-    DOM.valInsetX.value = wm.insetX;
-    DOM.sliderInsetY.value = wm.insetY;
-    DOM.valInsetY.value = wm.insetY;
-    DOM.sliderRotation.value = wm.rotation;
-    DOM.valRotation.value = wm.rotation;
-
-    DOM.scaleModeSelect.value = wm.scaleMode;
-    DOM.blendModeSelect.value = wm.blendMode;
-    DOM.toggleShadow.checked = wm.shadow.enabled;
-
-    // Tiled
-    DOM.toggleTiled.checked = wm.tiled.enabled;
-    DOM.groupTiledControls.style.display = wm.tiled.enabled ? 'flex' : 'none';
-    DOM.sliderTiledSpacing.value = wm.tiled.spacing;
-    DOM.valTiledSpacing.value = wm.tiled.spacing;
-
-    // 9-Point Anchor cells
-    DOM.anchorCells.forEach(cell => {
-      if (cell.dataset.anchor === wm.anchor) {
-        cell.classList.add('active');
-      } else {
-        cell.classList.remove('active');
-      }
+    DOM.valScaleBadge.textContent = `${wm.scale}%`;
+    DOM.quickScaleBtns.forEach(btn => {
+      const s = parseInt(btn.dataset.scale, 10);
+      btn.classList.toggle('active', s === wm.scale);
     });
+
+    // Anchor Grid Cells & Quick Pills
+    DOM.anchorCells.forEach(cell => {
+      cell.classList.toggle('active', cell.dataset.anchor === wm.anchor);
+    });
+
+    DOM.posPills.forEach(pill => {
+      pill.classList.toggle('active', pill.dataset.anchor === wm.anchor);
+    });
+
+    // Insets
+    DOM.sliderInsetY.value = wm.insetY;
+    DOM.valInsetYBadge.textContent = `${wm.insetY}%`;
+    DOM.sliderInsetX.value = wm.insetX;
+    DOM.valInsetXBadge.textContent = `${wm.insetX}%`;
+
+    // Rotation
+    DOM.sliderRotation.value = wm.rotation;
+    DOM.valRotationBadge.textContent = `${wm.rotation}°`;
   }
 
   // --- Photo Queue Management ---
@@ -517,7 +272,7 @@
 
     const validFiles = Array.from(fileList).filter(f => f.type.startsWith('image/'));
     if (validFiles.length === 0) {
-      alert('Vui lòng chọn file hình ảnh hợp lệ (JPG, PNG, WebP).');
+      alert('Vui lòng chọn file hình ảnh (JPG, PNG, WebP).');
       return;
     }
 
@@ -606,7 +361,7 @@
 
   function clearAllPhotos() {
     if (state.photos.length === 0) return;
-    if (confirm('Bạn có chắc chắn muốn xóa toàn bộ ảnh trong danh sách?')) {
+    if (confirm('Bạn có muốn xóa toàn bộ danh sách ảnh này không?')) {
       state.photos.forEach(p => URL.revokeObjectURL(p.dataUrl));
       state.photos = [];
       state.currentIndex = 0;
@@ -619,7 +374,7 @@
     const current = state.photos[state.currentIndex];
     if (current) {
       DOM.currentFilename.textContent = current.name;
-      DOM.currentDim.textContent = current.width ? `${current.width} × ${current.height}px` : 'Đang tải...';
+      DOM.currentDim.textContent = current.width ? `${current.width} × ${current.height}px` : 'Đang đọc...';
       DOM.photoCountBadge.textContent = `${state.currentIndex + 1} / ${state.photos.length} ảnh`;
     }
   }
@@ -628,11 +383,10 @@
   function renderFilmstrip() {
     DOM.filmstripItems.innerHTML = '';
 
-    // Add Photos Button inside strip
     const addBtn = document.createElement('button');
     addBtn.className = 'add-thumb-btn';
     addBtn.innerHTML = `
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
         <line x1="12" y1="5" x2="12" y2="19"></line>
         <line x1="5" y1="12" x2="19" y2="12"></line>
       </svg>
@@ -684,7 +438,7 @@
     });
   }
 
-  // --- Live Preview Canvas Rendering ---
+  // --- Live Canvas Preview ---
   let animationFrameId = null;
 
   function renderPreview() {
@@ -699,14 +453,12 @@
     const canvas = DOM.previewCanvas;
     const ctx = canvas.getContext('2d');
 
-    // Calculate display dimensions based on viewport
     const containerW = DOM.canvasContainer.clientWidth - 40;
     const containerH = DOM.canvasContainer.clientHeight - 40;
 
     let targetW = photo.width;
     let targetH = photo.height;
 
-    // Scale canvas to fit viewport comfortably
     const scale = Math.min(containerW / targetW, containerH / targetH, 1);
     const displayW = Math.round(targetW * scale);
     const displayH = Math.round(targetH * scale);
@@ -714,16 +466,16 @@
     canvas.width = displayW;
     canvas.height = displayH;
 
-    // Draw background photo
+    // Vẽ ảnh nền
     ctx.drawImage(photo.img, 0, 0, displayW, displayH);
 
-    // If Before/After is held to "Show Original", stop here!
+    // Nếu người dùng đang giữ phím Space xem ảnh gốc
     if (state.showOriginal) {
       DOM.interactiveBox.style.display = 'none';
       return;
     }
 
-    // Render Watermark on top
+    // Vẽ logo của Đội
     const metrics = WatermarkEngine.renderWatermark(
       ctx,
       displayW,
@@ -732,15 +484,14 @@
       state.logoImg
     );
 
-    // Position interactive bounding box on top of canvas for direct drag & resize
-    if (metrics && !state.watermark.tiled.enabled) {
+    // Cập nhật khung viền tương tác
+    if (metrics) {
       updateInteractiveBox(metrics, displayW, displayH);
     } else {
       DOM.interactiveBox.style.display = 'none';
     }
   }
 
-  // --- Interactive On-Canvas Watermark Bounding Box ---
   function updateInteractiveBox(metrics, canvasW, canvasH) {
     const box = DOM.interactiveBox;
     box.style.display = 'block';
@@ -759,38 +510,31 @@
     const listToExport = onlyCurrent ? [state.photos[state.currentIndex]] : state.photos;
     const total = listToExport.length;
 
-    // Open progress modal
     DOM.progressModal.classList.add('active');
     DOM.progressBarFill.style.width = '0%';
     DOM.progressText.textContent = `0 / ${total} ảnh`;
     DOM.progressDetail.textContent = 'Đang chuẩn bị...';
 
     const zip = new JSZip();
-    const startTime = Date.now();
 
     for (let i = 0; i < total; i++) {
-      if (!state.isExporting) break; // User cancelled
+      if (!state.isExporting) break;
 
       const item = listToExport[i];
-      DOM.progressDetail.textContent = `Đang xử lý: ${item.name} (${item.width} × ${item.height}px)`;
+      DOM.progressDetail.textContent = `Đang xử lý: ${item.name}`;
       DOM.progressText.textContent = `${i + 1} / ${total} ảnh (${Math.round(((i + 1) / total) * 100)}%)`;
       DOM.progressBarFill.style.width = `${((i + 1) / total) * 100}%`;
 
-      // 1. Process at FULL ORIGINAL RESOLUTION
+      // Xử lý ở độ phân giải gốc
       const blob = await processFullResImage(item);
-
-      // 2. Generate Output Filename
       const outName = formatOutputName(item.name, i + 1, state.exportSettings.format);
 
       if (total === 1) {
-        // Direct download single file
         downloadBlob(blob, outName);
       } else {
-        // Add to ZIP (store mode is lightning fast for JPEGs)
         zip.file(outName, blob);
       }
 
-      // Small async yield so UI remains silky smooth
       await new Promise(r => setTimeout(r, 15));
     }
 
@@ -800,30 +544,24 @@
         type: 'blob',
         compression: 'STORE'
       });
-      const zipName = `watermark_photos_${Date.now()}.zip`;
+      const zipName = `anh_doi1085_${Date.now()}.zip`;
       downloadBlob(zipBlob, zipName);
     }
 
-    // Done
     setTimeout(() => {
       DOM.progressModal.classList.remove('active');
       state.isExporting = false;
     }, 500);
   }
 
-  /**
-   * Process a single photo at FULL original resolution
-   */
   async function processFullResImage(photo) {
     return new Promise(resolve => {
-      // Ensure image is loaded
       const img = new Image();
       img.src = photo.dataUrl;
       img.onload = () => {
         let finalW = img.naturalWidth;
         let finalH = img.naturalHeight;
 
-        // Check if resize mode is active
         if (state.exportSettings.resizeMode === 'max_edge') {
           const maxEdge = state.exportSettings.maxEdge || 2048;
           if (finalW > maxEdge || finalH > maxEdge) {
@@ -846,10 +584,10 @@
         offCanvas.height = finalH;
         const offCtx = offCanvas.getContext('2d');
 
-        // Draw original photo crisply
+        // Vẽ ảnh gốc sắc nét
         offCtx.drawImage(img, 0, 0, finalW, finalH);
 
-        // Render Watermark with exact mathematical proportionality
+        // Vẽ logo Đội chuẩn tỉ lệ toán học
         WatermarkEngine.renderWatermark(
           offCtx,
           finalW,
@@ -858,7 +596,6 @@
           state.logoImg
         );
 
-        // Convert to selected format and quality
         let mime = state.exportSettings.format;
         if (mime === 'original') {
           mime = photo.file.type || 'image/jpeg';
@@ -882,7 +619,7 @@
     else if (format === 'image/png') ext = 'png';
     else if (format === 'image/webp') ext = 'webp';
 
-    const pattern = state.exportSettings.namingPattern || '{name}_watermarked';
+    const pattern = state.exportSettings.namingPattern || '{name}_doi1085';
     const formatted = pattern
       .replace('{name}', baseName)
       .replace('{index}', String(index).padStart(3, '0'));
@@ -903,20 +640,63 @@
     }, 100);
   }
 
+  // --- Demo Photography (Ảnh hoạt động tình nguyện mẫu) ---
+  function loadDemoPhotos() {
+    const demos = [
+      { name: 'Hoat_Dong_Tinh_Nguyen_Camp.jpg', w: 3000, h: 2000, type: 'event' },
+      { name: 'Tap_The_Doi_1085_Portrait.jpg', w: 2000, h: 3000, type: 'portrait' }
+    ];
+
+    demos.forEach(d => {
+      const c = document.createElement('canvas');
+      c.width = d.w;
+      c.height = d.h;
+      const ctx = c.getContext('2d');
+
+      if (d.type === 'event') {
+        // Nắng hè tình nguyện rực rỡ
+        const grad = ctx.createLinearGradient(0, 0, 0, d.h);
+        grad.addColorStop(0, '#2b70c9');
+        grad.addColorStop(0.5, '#7bb4f7');
+        grad.addColorStop(0.75, '#fde68a');
+        grad.addColorStop(1, '#15803d');
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, d.w, d.h);
+
+        // Đồi xanh
+        ctx.fillStyle = '#166534';
+        ctx.beginPath();
+        ctx.moveTo(0, d.h * 0.75);
+        ctx.quadraticCurveTo(d.w * 0.35, d.h * 0.65, d.w * 0.7, d.h * 0.8);
+        ctx.lineTo(d.w, d.h * 0.72);
+        ctx.lineTo(d.w, d.h);
+        ctx.lineTo(0, d.h);
+        ctx.closePath();
+        ctx.fill();
+      } else {
+        // Ảnh tập thể dọc ấm cúng
+        const grad = ctx.createRadialGradient(d.w * 0.5, d.h * 0.4, 200, d.w * 0.5, d.h * 0.5, d.h * 0.8);
+        grad.addColorStop(0, '#3b82f6');
+        grad.addColorStop(0.6, '#1e3a8a');
+        grad.addColorStop(1, '#0f172a');
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, d.w, d.h);
+      }
+
+      c.toBlob(blob => {
+        const file = new File([blob], d.name, { type: 'image/jpeg' });
+        addFiles([file]);
+      }, 'image/jpeg', 0.95);
+    });
+  }
+
   // --- Event Bindings ---
   function bindEvents() {
-    // Window Resize
-    window.addEventListener('resize', () => {
-      renderPreview();
-    });
+    window.addEventListener('resize', () => renderPreview());
 
-    // Preset Selection
-    DOM.presetSelect.addEventListener('change', (e) => {
-      applyPreset(e.target.value);
-    });
-
+    // Presets
+    DOM.presetSelect.addEventListener('change', (e) => applyPreset(e.target.value));
     DOM.btnSavePreset.addEventListener('click', saveCurrentAsPreset);
-    DOM.btnDeletePreset.addEventListener('click', deleteCurrentPreset);
 
     // Photos Input
     DOM.photosInput.addEventListener('change', (e) => {
@@ -924,15 +704,12 @@
       e.target.value = '';
     });
 
-    if (DOM.btnLoadDemo) {
-      DOM.btnLoadDemo.addEventListener('click', loadDemoPhotos);
-    }
-
     DOM.btnAddPhotos.addEventListener('click', () => DOM.photosInput.click());
     DOM.emptyState.addEventListener('click', () => DOM.photosInput.click());
     DOM.btnClearPhotos.addEventListener('click', clearAllPhotos);
+    if (DOM.btnLoadDemo) DOM.btnLoadDemo.addEventListener('click', loadDemoPhotos);
 
-    // Global Drag & Drop for Photos
+    // Drag & Drop
     ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(evt => {
       document.body.addEventListener(evt, (e) => {
         e.preventDefault();
@@ -945,194 +722,121 @@
       DOM.emptyState.classList.add('drag-over');
     });
 
-    document.body.addEventListener('dragleave', (e) => {
-      DOM.emptyState.classList.remove('drag-over');
-    });
-
+    document.body.addEventListener('dragleave', () => DOM.emptyState.classList.remove('drag-over'));
     document.body.addEventListener('drop', (e) => {
       DOM.emptyState.classList.remove('drag-over');
-      const files = e.dataTransfer.files;
-      if (files && files.length > 0) {
-        addFiles(files);
+      if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+        addFiles(e.dataTransfer.files);
       }
     });
 
-    // Logo Dropzone & Input
-    DOM.logoDropzone.addEventListener('click', () => DOM.logoInput.click());
+    // Logo change & reset
     DOM.logoInput.addEventListener('change', (e) => {
       const file = e.target.files[0];
       if (file && file.type.startsWith('image/')) {
-        loadCustomLogo(file);
+        const url = URL.createObjectURL(file);
+        const img = new Image();
+        img.src = url;
+        img.onload = () => {
+          state.logoImg = img;
+          DOM.logoThumbImg.src = url;
+          DOM.logoDim.textContent = `${img.naturalWidth} × ${img.naturalHeight}px (Logo tùy chọn)`;
+          renderPreview();
+        };
       }
       e.target.value = '';
     });
 
-    DOM.logoDropzone.addEventListener('dragover', (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      DOM.logoDropzone.classList.add('drag-over');
+    DOM.btnResetDefaultLogo.addEventListener('click', () => {
+      loadDefaultTeamLogo();
     });
 
-    DOM.logoDropzone.addEventListener('dragleave', (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      DOM.logoDropzone.classList.remove('drag-over');
-    });
-
-    DOM.logoDropzone.addEventListener('drop', (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      DOM.logoDropzone.classList.remove('drag-over');
-      const file = e.dataTransfer.files[0];
-      if (file && file.type.startsWith('image/')) {
-        loadCustomLogo(file);
-      }
-    });
-
-    // Watermark Type Tabs
-    DOM.btnTabImage.addEventListener('click', () => {
-      state.watermark.type = 'image';
-      updateUIFromConfig();
-      renderPreview();
-    });
-
-    DOM.btnTabText.addEventListener('click', () => {
-      state.watermark.type = 'text';
-      updateUIFromConfig();
-      renderPreview();
-    });
-
-    // Logo Color Filter
-    DOM.logoFilterSelect.addEventListener('change', (e) => {
-      state.watermark.colorFilter = e.target.value;
-      DOM.tintColorRow.style.display = e.target.value === 'tint' ? 'flex' : 'none';
-      renderPreview();
-    });
-
-    DOM.tintColorPicker.addEventListener('input', (e) => {
-      state.watermark.tintColor = e.target.value;
-      renderPreview();
-    });
-
-    // Text inputs
-    DOM.textInput.addEventListener('input', (e) => {
-      state.watermark.text = e.target.value;
-      renderPreview();
-    });
-
-    DOM.fontSelect.addEventListener('change', (e) => {
-      state.watermark.fontFamily = e.target.value;
-      renderPreview();
-    });
-
-    DOM.btnFontBold.addEventListener('click', () => {
-      state.watermark.bold = !state.watermark.bold;
-      DOM.btnFontBold.style.backgroundColor = state.watermark.bold ? 'var(--accent)' : 'var(--bg-input)';
-      renderPreview();
-    });
-
-    DOM.btnFontItalic.addEventListener('click', () => {
-      state.watermark.italic = !state.watermark.italic;
-      DOM.btnFontItalic.style.backgroundColor = state.watermark.italic ? 'var(--accent)' : 'var(--bg-input)';
-      renderPreview();
-    });
-
-    DOM.textColorPicker.addEventListener('input', (e) => {
-      state.watermark.textColor = e.target.value;
-      renderPreview();
-    });
-
-    DOM.toggleStroke.addEventListener('change', (e) => {
-      state.watermark.stroke.enabled = e.target.checked;
-      renderPreview();
-    });
-
-    DOM.toggleBgBox.addEventListener('change', (e) => {
-      state.watermark.bgBox.enabled = e.target.checked;
-      renderPreview();
-    });
-
-    // Sliders & Link to Numeric inputs
-    bindSlider(DOM.sliderScale, DOM.valScale, (val) => {
+    // Size Slider
+    DOM.sliderScale.addEventListener('input', (e) => {
+      const val = parseInt(e.target.value, 10);
       state.watermark.scale = val;
+      DOM.valScaleBadge.textContent = `${val}%`;
+      DOM.quickScaleBtns.forEach(btn => {
+        btn.classList.toggle('active', parseInt(btn.dataset.scale, 10) === val);
+      });
       renderPreview();
     });
 
-    bindSlider(DOM.sliderOpacity, DOM.valOpacity, (val) => {
-      state.watermark.opacity = val;
-      renderPreview();
-    });
-
-    bindSlider(DOM.sliderInsetX, DOM.valInsetX, (val) => {
-      state.watermark.insetX = val;
-      state.watermark.customOffset.enabled = false;
-      renderPreview();
-    });
-
-    bindSlider(DOM.sliderInsetY, DOM.valInsetY, (val) => {
-      state.watermark.insetY = val;
-      state.watermark.customOffset.enabled = false;
-      renderPreview();
-    });
-
-    bindSlider(DOM.sliderRotation, DOM.valRotation, (val) => {
-      state.watermark.rotation = val;
-      renderPreview();
-    });
-
-    DOM.scaleModeSelect.addEventListener('change', (e) => {
-      state.watermark.scaleMode = e.target.value;
-      renderPreview();
-    });
-
-    DOM.blendModeSelect.addEventListener('change', (e) => {
-      state.watermark.blendMode = e.target.value;
-      renderPreview();
-    });
-
-    DOM.toggleShadow.addEventListener('change', (e) => {
-      state.watermark.shadow.enabled = e.target.checked;
-      renderPreview();
-    });
-
-    DOM.toggleTiled.addEventListener('change', (e) => {
-      state.watermark.tiled.enabled = e.target.checked;
-      DOM.groupTiledControls.style.display = e.target.checked ? 'flex' : 'none';
-      renderPreview();
-    });
-
-    bindSlider(DOM.sliderTiledSpacing, DOM.valTiledSpacing, (val) => {
-      state.watermark.tiled.spacing = val;
-      renderPreview();
-    });
-
-    // Quick Rotation Buttons
-    document.querySelectorAll('.rot-btn').forEach(btn => {
+    // Quick Size Buttons
+    DOM.quickScaleBtns.forEach(btn => {
       btn.addEventListener('click', () => {
-        const angle = parseInt(btn.dataset.rot, 10);
-        state.watermark.rotation = angle;
-        DOM.sliderRotation.value = angle;
-        DOM.valRotation.value = angle;
+        const s = parseInt(btn.dataset.scale, 10);
+        state.watermark.scale = s;
+        DOM.sliderScale.value = s;
+        DOM.valScaleBadge.textContent = `${s}%`;
+        DOM.quickScaleBtns.forEach(b => b.classList.toggle('active', b === btn));
         renderPreview();
       });
     });
 
-    // 9-Point Anchor Grid Click
+    // 9-Point Anchor Grid
     DOM.anchorCells.forEach(cell => {
       cell.addEventListener('click', () => {
-        DOM.anchorCells.forEach(c => c.classList.remove('active'));
-        cell.classList.add('active');
-        state.watermark.anchor = cell.dataset.anchor;
-        state.watermark.customOffset.enabled = false;
+        const anchor = cell.dataset.anchor;
+        setAnchor(anchor);
+      });
+    });
+
+    // Quick Position Pills
+    DOM.posPills.forEach(pill => {
+      pill.addEventListener('click', () => {
+        const anchor = pill.dataset.anchor;
+        setAnchor(anchor);
+      });
+    });
+
+    function setAnchor(anchor) {
+      state.watermark.anchor = anchor;
+      state.watermark.customOffset.enabled = false;
+      DOM.anchorCells.forEach(c => c.classList.toggle('active', c.dataset.anchor === anchor));
+      DOM.posPills.forEach(p => p.classList.toggle('active', p.dataset.anchor === anchor));
+      renderPreview();
+    }
+
+    // Inset Sliders
+    DOM.sliderInsetY.addEventListener('input', (e) => {
+      const val = parseFloat(e.target.value);
+      state.watermark.insetY = val;
+      DOM.valInsetYBadge.textContent = `${val}%`;
+      state.watermark.customOffset.enabled = false;
+      renderPreview();
+    });
+
+    DOM.sliderInsetX.addEventListener('input', (e) => {
+      const val = parseFloat(e.target.value);
+      state.watermark.insetX = val;
+      DOM.valInsetXBadge.textContent = `${val}%`;
+      state.watermark.customOffset.enabled = false;
+      renderPreview();
+    });
+
+    // Rotation
+    DOM.sliderRotation.addEventListener('input', (e) => {
+      const val = parseInt(e.target.value, 10);
+      state.watermark.rotation = val;
+      DOM.valRotationBadge.textContent = `${val}°`;
+      renderPreview();
+    });
+
+    DOM.rotBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        const r = parseInt(btn.dataset.rot, 10);
+        state.watermark.rotation = r;
+        DOM.sliderRotation.value = r;
+        DOM.valRotationBadge.textContent = `${r}°`;
         renderPreview();
       });
     });
 
-    // Navigation Controls
+    // Navigation & Preview controls
     DOM.btnPrevPhoto.addEventListener('click', () => selectPhoto(state.currentIndex - 1));
     DOM.btnNextPhoto.addEventListener('click', () => selectPhoto(state.currentIndex + 1));
 
-    // Before / After View Toggle
     DOM.btnBeforeAfter.addEventListener('mousedown', () => {
       state.showOriginal = true;
       renderPreview();
@@ -1144,29 +848,19 @@
       }
     });
 
-    // Interactive Dragging on Canvas Box
+    // Interactive Drag on Canvas
     setupInteractiveDrag();
 
-    // Export Buttons
-    DOM.btnExportBatch.addEventListener('click', () => {
-      DOM.exportModal.classList.add('active');
-    });
-
-    DOM.btnExportCurrent.addEventListener('click', () => {
-      startBatchExport(true);
-    });
-
-    DOM.btnCancelExportModal.addEventListener('click', () => {
-      DOM.exportModal.classList.remove('active');
-    });
+    // Export Action
+    DOM.btnExportBatch.addEventListener('click', () => DOM.exportModal.classList.add('active'));
+    DOM.btnExportCurrent.addEventListener('click', () => startBatchExport(true));
+    DOM.btnCancelExportModal.addEventListener('click', () => DOM.exportModal.classList.remove('active'));
 
     DOM.btnStartExport.addEventListener('click', () => {
-      // Gather export settings
       state.exportSettings.format = DOM.exportFormat.value;
       state.exportSettings.quality = parseInt(DOM.exportQuality.value, 10);
       state.exportSettings.resizeMode = DOM.exportResize.value;
-      state.exportSettings.maxEdge = parseInt(DOM.exportResizeMaxEdge.value, 10) || 2048;
-      state.exportSettings.namingPattern = DOM.exportNaming.value || '{name}_watermarked';
+      state.exportSettings.namingPattern = DOM.exportNaming.value || '{name}_doi1085';
 
       DOM.exportModal.classList.remove('active');
       startBatchExport(false);
@@ -1181,30 +875,20 @@
       DOM.valQuality.textContent = `${e.target.value}%`;
     });
 
-    DOM.exportResize.addEventListener('change', (e) => {
-      DOM.maxEdgeRow.style.display = e.target.value === 'max_edge' ? 'flex' : 'none';
-    });
-
     DOM.btnCancelProgress.addEventListener('click', () => {
       state.isExporting = false;
       DOM.progressModal.classList.remove('active');
     });
 
-    // Keyboard Shortcuts
+    // Shortcuts
     window.addEventListener('keydown', (e) => {
       if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
-
-      if (e.code === 'ArrowLeft') {
-        selectPhoto(state.currentIndex - 1);
-      } else if (e.code === 'ArrowRight') {
-        selectPhoto(state.currentIndex + 1);
-      } else if (e.code === 'Space' && !e.repeat) {
+      if (e.code === 'ArrowLeft') selectPhoto(state.currentIndex - 1);
+      else if (e.code === 'ArrowRight') selectPhoto(state.currentIndex + 1);
+      else if (e.code === 'Space' && !e.repeat) {
         e.preventDefault();
         state.showOriginal = true;
         renderPreview();
-      } else if (e.code === 'KeyE' && (e.ctrlKey || e.metaKey)) {
-        e.preventDefault();
-        DOM.btnExportBatch.click();
       }
     });
 
@@ -1216,118 +900,7 @@
     });
   }
 
-  // --- Demo Photography Generator (Landscape + Portrait) ---
-  function loadDemoPhotos() {
-    const demos = [
-      { name: 'Demo_Landscape_3000x2000.jpg', w: 3000, h: 2000, type: 'landscape' },
-      { name: 'Demo_Portrait_2000x3000.jpg', w: 2000, h: 3000, type: 'portrait' }
-    ];
-
-    demos.forEach(d => {
-      const c = document.createElement('canvas');
-      c.width = d.w;
-      c.height = d.h;
-      const ctx = c.getContext('2d');
-
-      if (d.type === 'landscape') {
-        // Sunset Landscape Gradient
-        const grad = ctx.createLinearGradient(0, 0, 0, d.h);
-        grad.addColorStop(0, '#1a102f');
-        grad.addColorStop(0.35, '#5c2243');
-        grad.addColorStop(0.65, '#bd4832');
-        grad.addColorStop(0.85, '#f09338');
-        grad.addColorStop(1, '#ffcb6b');
-        ctx.fillStyle = grad;
-        ctx.fillRect(0, 0, d.w, d.h);
-
-        // Distant Mountain Ridges
-        ctx.fillStyle = '#261224';
-        ctx.beginPath();
-        ctx.moveTo(0, d.h * 0.72);
-        ctx.lineTo(d.w * 0.25, d.h * 0.62);
-        ctx.lineTo(d.w * 0.55, d.h * 0.68);
-        ctx.lineTo(d.w * 0.85, d.h * 0.58);
-        ctx.lineTo(d.w, d.h * 0.66);
-        ctx.lineTo(d.w, d.h);
-        ctx.lineTo(0, d.h);
-        ctx.closePath();
-        ctx.fill();
-
-        // Foreground Hills
-        ctx.fillStyle = '#100813';
-        ctx.beginPath();
-        ctx.moveTo(0, d.h * 0.82);
-        ctx.lineTo(d.w * 0.4, d.h * 0.74);
-        ctx.lineTo(d.w * 0.75, d.h * 0.84);
-        ctx.lineTo(d.w, d.h * 0.78);
-        ctx.lineTo(d.w, d.h);
-        ctx.lineTo(0, d.h);
-        ctx.closePath();
-        ctx.fill();
-      } else {
-        // Atmospheric Studio Portrait Backdrop
-        const grad = ctx.createRadialGradient(d.w * 0.5, d.h * 0.42, 100, d.w * 0.5, d.h * 0.42, d.h * 0.75);
-        grad.addColorStop(0, '#3a4a5e');
-        grad.addColorStop(0.5, '#1e2530');
-        grad.addColorStop(1, '#0c0e12');
-        ctx.fillStyle = grad;
-        ctx.fillRect(0, 0, d.w, d.h);
-
-        // Bokeh Circles
-        for (let i = 0; i < 28; i++) {
-          const bx = (Math.sin(i * 3.7) * 0.5 + 0.5) * d.w;
-          const by = (Math.cos(i * 4.9) * 0.5 + 0.5) * d.h;
-          const rad = 40 + (i % 6) * 35;
-          ctx.fillStyle = `rgba(255, 255, 255, ${0.03 + (i % 4) * 0.02})`;
-          ctx.beginPath();
-          ctx.arc(bx, by, rad, 0, Math.PI * 2);
-          ctx.fill();
-        }
-      }
-
-      // Vignette effect
-      const vig = ctx.createRadialGradient(d.w / 2, d.h / 2, Math.min(d.w, d.h) * 0.4, d.w / 2, d.h / 2, Math.max(d.w, d.h) * 0.75);
-      vig.addColorStop(0, 'rgba(0,0,0,0)');
-      vig.addColorStop(1, 'rgba(0,0,0,0.55)');
-      ctx.fillStyle = vig;
-      ctx.fillRect(0, 0, d.w, d.h);
-
-      c.toBlob(blob => {
-        const file = new File([blob], d.name, { type: 'image/jpeg' });
-        addFiles([file]);
-      }, 'image/jpeg', 0.95);
-    });
-  }
-
-  function loadCustomLogo(file) {
-    const url = URL.createObjectURL(file);
-    const img = new Image();
-    img.src = url;
-    img.onload = () => {
-      state.logoImg = img;
-      DOM.logoThumbImg.src = url;
-      DOM.logoName.textContent = file.name;
-      DOM.logoDim.textContent = `${img.naturalWidth} × ${img.naturalHeight}px`;
-      renderPreview();
-    };
-  }
-
-  function bindSlider(sliderEl, inputEl, onChange) {
-    sliderEl.addEventListener('input', (e) => {
-      const val = parseFloat(e.target.value);
-      inputEl.value = val;
-      onChange(val);
-    });
-
-    inputEl.addEventListener('change', (e) => {
-      let val = parseFloat(e.target.value);
-      if (isNaN(val)) val = 0;
-      sliderEl.value = val;
-      onChange(val);
-    });
-  }
-
-  // --- Direct On-Canvas Drag & Resize Logic ---
+  // --- Interactive Drag on Canvas ---
   function setupInteractiveDrag() {
     const box = DOM.interactiveBox;
     let isDragging = false;
@@ -1353,7 +926,6 @@
 
     window.addEventListener('mousemove', (e) => {
       if (!isDragging && !isResizing) return;
-
       const canvas = DOM.previewCanvas;
       if (!canvas) return;
 
@@ -1373,11 +945,14 @@
         const dx = e.clientX - startX;
         const newWidth = Math.max(20, initialWidth + dx);
         const newScale = Math.round((newWidth / Math.min(canvas.width, canvas.height)) * 100);
-        const clampedScale = Math.max(2, Math.min(100, newScale));
+        const clampedScale = Math.max(6, Math.min(45, newScale));
         
         state.watermark.scale = clampedScale;
         DOM.sliderScale.value = clampedScale;
-        DOM.valScale.value = clampedScale;
+        DOM.valScaleBadge.textContent = `${clampedScale}%`;
+        DOM.quickScaleBtns.forEach(b => {
+          b.classList.toggle('active', parseInt(b.dataset.scale, 10) === clampedScale);
+        });
         renderPreview();
       }
     });
@@ -1388,6 +963,5 @@
     });
   }
 
-  // Kickstart on DOM Content Loaded
   document.addEventListener('DOMContentLoaded', init);
 })();
