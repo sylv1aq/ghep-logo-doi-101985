@@ -1,12 +1,10 @@
 /**
- * Đội Tình Nguyện 10/1985 - Watermark Studio App Logic
+ * Đội Tình nguyện 10/1985 Hội Sinh viên - Watermark Studio App Logic
  * Xử lý hình ảnh hàng loạt trực tiếp trên trình duyệt máy tính & điện thoại
  */
 
 (function () {
   'use strict';
-
-  const DEFAULT_LOGO_PATH = 'assets/logo-doi.png';
 
   // --- Initial State ---
   const state = {
@@ -16,7 +14,7 @@
     isExporting: false,
     logoImg: null,
     
-    // Cấu hình watermark chuẩn của Đội
+    // Cấu hình watermark chuẩn của Đội Tình nguyện 10/1985 Hội Sinh viên
     watermark: {
       scale: 18, // 18% kích thước ảnh
       anchor: 'tc', // ⭐ Ở giữa, trên cùng
@@ -43,7 +41,7 @@
     presets: []
   };
 
-  // --- Mẫu thiết lập sẵn cho Đội ---
+  // --- Mẫu thiết lập sẵn cho Đội Tình nguyện 10/1985 Hội Sinh viên ---
   const defaultPresets = [
     {
       id: 'default-tc',
@@ -92,6 +90,7 @@
     DOM.btnPrevPhoto = document.getElementById('btn-prev-photo');
     DOM.btnNextPhoto = document.getElementById('btn-next-photo');
     DOM.btnBeforeAfter = document.getElementById('btn-before-after');
+    DOM.btnPickPhotos = document.getElementById('btn-pick-photos');
     DOM.btnLoadDemo = document.getElementById('btn-load-demo');
 
     // Preset Picker
@@ -102,6 +101,7 @@
     DOM.logoThumbImg = document.getElementById('logo-thumb-img');
     DOM.logoDim = document.getElementById('logo-dim');
     DOM.logoInput = document.getElementById('logo-input');
+    DOM.btnTriggerLogoInput = document.getElementById('btn-trigger-logo-input');
     DOM.btnResetDefaultLogo = document.getElementById('btn-reset-default-logo');
 
     // Size Slider & Quick buttons
@@ -159,20 +159,26 @@
     updatePhotoQueueState();
   }
 
-  // --- Load Team Logo ---
+  // --- Load Team Logo (Dùng Base64 data URI để tránh Tainted Canvas khi chạy file://) ---
   function loadDefaultTeamLogo() {
+    const logoSrc = (typeof DEFAULT_TEAM_LOGO !== 'undefined' && DEFAULT_TEAM_LOGO) 
+      ? DEFAULT_TEAM_LOGO 
+      : 'assets/logo-doi.png';
+
     const img = new Image();
-    img.src = DEFAULT_LOGO_PATH;
     img.onload = () => {
       state.logoImg = img;
-      if (DOM.logoThumbImg) DOM.logoThumbImg.src = DEFAULT_LOGO_PATH;
+      if (DOM.logoThumbImg) DOM.logoThumbImg.src = logoSrc;
       if (DOM.logoDim) DOM.logoDim.textContent = `${img.naturalWidth} × ${img.naturalHeight}px (Đã cắt viền)`;
       renderPreview();
     };
     img.onerror = () => {
-      // Fallback nếu chạy ở môi trường đặc biệt
-      console.warn('Không thể tải logo từ path, kiểm tra thư mục assets');
+      // Fallback sang file path
+      if (img.src !== 'assets/logo-doi.png') {
+        img.src = 'assets/logo-doi.png';
+      }
     };
+    img.src = logoSrc;
   }
 
   // --- Presets Management ---
@@ -219,7 +225,7 @@
   }
 
   function saveCurrentAsPreset() {
-    const name = prompt('Nhập tên cho mẫu thiết lập mới của Đội:', `Mẫu của tôi ${state.presets.length + 1}`);
+    const name = prompt('Nhập tên cho mẫu thiết lập mới của Đội Tình nguyện 10/1985 Hội Sinh viên:', `Mẫu của tôi ${state.presets.length + 1}`);
     if (!name || !name.trim()) return;
 
     const newPreset = {
@@ -266,21 +272,27 @@
     DOM.valRotationBadge.textContent = `${wm.rotation}°`;
   }
 
-  // --- Photo Queue Management ---
+  // --- Photo Queue Management (Nhận ảnh an toàn & linh hoạt) ---
   function addFiles(fileList) {
     if (!fileList || fileList.length === 0) return;
 
-    const validFiles = Array.from(fileList).filter(f => f.type.startsWith('image/'));
+    // Chấp nhận mọi mime type image hoặc đuôi mở rộng file ảnh
+    const validFiles = Array.from(fileList).filter(f => {
+      if (f.type && f.type.toLowerCase().startsWith('image/')) return true;
+      return /\.(jpe?g|png|webp|bmp|gif|tiff?|avif|heic)$/i.test(f.name);
+    });
+
     if (validFiles.length === 0) {
-      alert('Vui lòng chọn file hình ảnh (JPG, PNG, WebP).');
+      alert('Vui lòng chọn file hình ảnh hợp lệ (JPG, PNG, WebP, ...).');
       return;
     }
 
     const startIdx = state.photos.length;
 
     validFiles.forEach((file, i) => {
+      const photoIdx = startIdx + i;
       const photoObj = {
-        id: 'photo-' + Date.now() + '-' + (startIdx + i),
+        id: 'photo-' + Date.now() + '-' + Math.random().toString(36).substr(2, 6) + '-' + photoIdx,
         file: file,
         name: file.name,
         size: file.size,
@@ -291,16 +303,19 @@
       };
 
       const img = new Image();
-      img.src = photoObj.dataUrl;
       img.onload = () => {
         photoObj.img = img;
-        photoObj.width = img.naturalWidth;
-        photoObj.height = img.naturalHeight;
-        if (state.currentIndex === (startIdx + i)) {
+        photoObj.width = img.naturalWidth || img.width;
+        photoObj.height = img.naturalHeight || img.height;
+        if (state.currentIndex === photoIdx) {
           updateHeaderInfo();
           renderPreview();
         }
       };
+      img.onerror = () => {
+        console.warn('Không thể nạp trước ảnh:', file.name);
+      };
+      img.src = photoObj.dataUrl;
 
       state.photos.push(photoObj);
     });
@@ -448,7 +463,11 @@
 
   function doRenderPreview() {
     const photo = state.photos[state.currentIndex];
-    if (!photo || !photo.img || !photo.img.complete) return;
+    if (!photo) return;
+
+    // Đảm bảo ảnh đã tải xong
+    const img = photo.img;
+    if (!img || !img.complete || (img.naturalWidth === 0 && img.width === 0)) return;
 
     const canvas = DOM.previewCanvas;
     const ctx = canvas.getContext('2d');
@@ -456,8 +475,8 @@
     const containerW = DOM.canvasContainer.clientWidth - 40;
     const containerH = DOM.canvasContainer.clientHeight - 40;
 
-    let targetW = photo.width;
-    let targetH = photo.height;
+    let targetW = photo.width || img.naturalWidth || img.width;
+    let targetH = photo.height || img.naturalHeight || img.height;
 
     const scale = Math.min(containerW / targetW, containerH / targetH, 1);
     const displayW = Math.round(targetW * scale);
@@ -467,7 +486,7 @@
     canvas.height = displayH;
 
     // Vẽ ảnh nền
-    ctx.drawImage(photo.img, 0, 0, displayW, displayH);
+    ctx.drawImage(img, 0, 0, displayW, displayH);
 
     // Nếu người dùng đang giữ phím Space xem ảnh gốc
     if (state.showOriginal) {
@@ -475,7 +494,7 @@
       return;
     }
 
-    // Vẽ logo của Đội
+    // Vẽ logo của Đội Tình nguyện 10/1985 Hội Sinh viên
     const metrics = WatermarkEngine.renderWatermark(
       ctx,
       displayW,
@@ -502,11 +521,14 @@
     box.style.transform = `rotate(${state.watermark.rotation}deg)`;
   }
 
-  // --- Batch Export Engine ---
+  // --- Batch Export Engine (Xử lý & Xuất file an toàn tuyệt đối) ---
   async function startBatchExport(onlyCurrent = false) {
-    if (state.photos.length === 0) return;
-    state.isExporting = true;
+    if (state.photos.length === 0) {
+      alert('Vui lòng chọn ít nhất một hình ảnh để xuất!');
+      return;
+    }
 
+    state.isExporting = true;
     const listToExport = onlyCurrent ? [state.photos[state.currentIndex]] : state.photos;
     const total = listToExport.length;
 
@@ -515,99 +537,191 @@
     DOM.progressText.textContent = `0 / ${total} ảnh`;
     DOM.progressDetail.textContent = 'Đang chuẩn bị...';
 
-    const zip = new JSZip();
+    try {
+      const zip = new JSZip();
 
-    for (let i = 0; i < total; i++) {
-      if (!state.isExporting) break;
+      for (let i = 0; i < total; i++) {
+        if (!state.isExporting) break;
 
-      const item = listToExport[i];
-      DOM.progressDetail.textContent = `Đang xử lý: ${item.name}`;
-      DOM.progressText.textContent = `${i + 1} / ${total} ảnh (${Math.round(((i + 1) / total) * 100)}%)`;
-      DOM.progressBarFill.style.width = `${((i + 1) / total) * 100}%`;
+        const item = listToExport[i];
+        DOM.progressDetail.textContent = `Đang xử lý: ${item.name}`;
+        DOM.progressText.textContent = `${i + 1} / ${total} ảnh (${Math.round(((i + 1) / total) * 100)}%)`;
+        DOM.progressBarFill.style.width = `${((i + 1) / total) * 100}%`;
 
-      // Xử lý ở độ phân giải gốc
-      const blob = await processFullResImage(item);
-      const outName = formatOutputName(item.name, i + 1, state.exportSettings.format);
+        // Xử lý ở độ phân giải gốc
+        const blob = await processFullResImage(item);
+        if (!blob) {
+          console.warn('Bỏ qua ảnh lỗi:', item.name);
+          continue;
+        }
 
-      if (total === 1) {
-        downloadBlob(blob, outName);
-      } else {
-        zip.file(outName, blob);
+        const outName = formatOutputName(item.name, i + 1, state.exportSettings.format);
+
+        if (total === 1) {
+          downloadBlob(blob, outName);
+        } else {
+          zip.file(outName, blob);
+        }
+
+        await new Promise(r => setTimeout(r, 20));
       }
 
-      await new Promise(r => setTimeout(r, 15));
+      if (state.isExporting && total > 1) {
+        DOM.progressDetail.textContent = 'Đang đóng gói file ZIP...';
+        const zipBlob = await zip.generateAsync({
+          type: 'blob',
+          compression: 'STORE'
+        });
+        const zipName = `anh_doi1085_${Date.now()}.zip`;
+        downloadBlob(zipBlob, zipName);
+      }
+    } catch (err) {
+      console.error('Lỗi khi xuất ảnh:', err);
+      alert('Có lỗi xảy ra khi tạo file ảnh: ' + err.message);
+    } finally {
+      setTimeout(() => {
+        DOM.progressModal.classList.remove('active');
+        state.isExporting = false;
+      }, 500);
     }
-
-    if (state.isExporting && total > 1) {
-      DOM.progressDetail.textContent = 'Đang đóng gói file ZIP...';
-      const zipBlob = await zip.generateAsync({
-        type: 'blob',
-        compression: 'STORE'
-      });
-      const zipName = `anh_doi1085_${Date.now()}.zip`;
-      downloadBlob(zipBlob, zipName);
-    }
-
-    setTimeout(() => {
-      DOM.progressModal.classList.remove('active');
-      state.isExporting = false;
-    }, 500);
   }
 
+  // --- Xử lý render ảnh ở độ phân giải gốc kèm fallbacks ---
   async function processFullResImage(photo) {
-    return new Promise(resolve => {
-      const img = new Image();
-      img.src = photo.dataUrl;
-      img.onload = () => {
-        let finalW = img.naturalWidth;
-        let finalH = img.naturalHeight;
+    return new Promise((resolve) => {
+      // Đảm bảo image object đã nạp xong
+      const onImageReady = (img) => {
+        try {
+          let finalW = img.naturalWidth || img.width || 1920;
+          let finalH = img.naturalHeight || img.height || 1080;
 
-        if (state.exportSettings.resizeMode === 'max_edge') {
-          const maxEdge = state.exportSettings.maxEdge || 2048;
-          if (finalW > maxEdge || finalH > maxEdge) {
-            if (finalW >= finalH) {
-              finalH = Math.round((finalH * maxEdge) / finalW);
-              finalW = maxEdge;
-            } else {
-              finalW = Math.round((finalW * maxEdge) / finalH);
-              finalH = maxEdge;
+          if (state.exportSettings.resizeMode === 'max_edge') {
+            const maxEdge = state.exportSettings.maxEdge || 2048;
+            if (finalW > maxEdge || finalH > maxEdge) {
+              if (finalW >= finalH) {
+                finalH = Math.round((finalH * maxEdge) / finalW);
+                finalW = maxEdge;
+              } else {
+                finalW = Math.round((finalW * maxEdge) / finalH);
+                finalH = maxEdge;
+              }
             }
+          } else if (state.exportSettings.resizeMode === 'scale_pct') {
+            const pct = (state.exportSettings.scalePct || 80) / 100;
+            finalW = Math.round(finalW * pct);
+            finalH = Math.round(finalH * pct);
           }
-        } else if (state.exportSettings.resizeMode === 'scale_pct') {
-          const pct = (state.exportSettings.scalePct || 80) / 100;
-          finalW = Math.round(finalW * pct);
-          finalH = Math.round(finalH * pct);
+
+          const offCanvas = document.createElement('canvas');
+          offCanvas.width = finalW;
+          offCanvas.height = finalH;
+          const offCtx = offCanvas.getContext('2d');
+
+          // Vẽ ảnh gốc sắc nét
+          offCtx.drawImage(img, 0, 0, finalW, finalH);
+
+          // Vẽ logo của Đội Tình nguyện 10/1985 Hội Sinh viên
+          WatermarkEngine.renderWatermark(
+            offCtx,
+            finalW,
+            finalH,
+            state.watermark,
+            state.logoImg
+          );
+
+          let mime = state.exportSettings.format;
+          if (mime === 'original') {
+            mime = (photo.file && photo.file.type) ? photo.file.type : 'image/jpeg';
+          }
+          if (!mime || mime === 'original') mime = 'image/jpeg';
+
+          const quality = (state.exportSettings.quality || 92) / 100;
+
+          // Xuất blob an toàn không lo lỗi canvas
+          canvasToBlobSafe(offCanvas, mime, quality).then(blob => {
+            resolve(blob);
+          });
+        } catch (e) {
+          console.error('Lỗi canvas render:', e);
+          resolve(null);
         }
-
-        const offCanvas = document.createElement('canvas');
-        offCanvas.width = finalW;
-        offCanvas.height = finalH;
-        const offCtx = offCanvas.getContext('2d');
-
-        // Vẽ ảnh gốc sắc nét
-        offCtx.drawImage(img, 0, 0, finalW, finalH);
-
-        // Vẽ logo Đội chuẩn tỉ lệ toán học
-        WatermarkEngine.renderWatermark(
-          offCtx,
-          finalW,
-          finalH,
-          state.watermark,
-          state.logoImg
-        );
-
-        let mime = state.exportSettings.format;
-        if (mime === 'original') {
-          mime = photo.file.type || 'image/jpeg';
-        }
-
-        const quality = (state.exportSettings.quality || 92) / 100;
-
-        offCanvas.toBlob(blob => {
-          resolve(blob);
-        }, mime, quality);
       };
+
+      if (photo.img && photo.img.complete && (photo.img.naturalWidth > 0 || photo.img.width > 0)) {
+        onImageReady(photo.img);
+      } else {
+        const tempImg = new Image();
+        tempImg.onload = () => onImageReady(tempImg);
+        tempImg.onerror = () => {
+          console.error('Không thể đọc ảnh nguồn:', photo.name);
+          resolve(null);
+        };
+        tempImg.src = photo.dataUrl;
+
+        // Timeout 10s đề phòng kẹt
+        setTimeout(() => {
+          if (!tempImg.complete) {
+            console.warn('Timeout tải ảnh:', photo.name);
+            resolve(null);
+          }
+        }, 10000);
+      }
     });
+  }
+
+  // --- Chuyển đổi Canvas sang Blob an toàn tuyệt đối (Hỗ trợ DataURI Fallback) ---
+  function canvasToBlobSafe(canvas, mime, quality) {
+    return new Promise((resolve) => {
+      try {
+        if (canvas.toBlob) {
+          canvas.toBlob(blob => {
+            if (blob) {
+              resolve(blob);
+            } else {
+              // Fallback qua toDataURL
+              tryFallbackDataURL(canvas, mime, quality, resolve);
+            }
+          }, mime, quality);
+        } else {
+          tryFallbackDataURL(canvas, mime, quality, resolve);
+        }
+      } catch (err) {
+        tryFallbackDataURL(canvas, mime, quality, resolve);
+      }
+    });
+  }
+
+  function tryFallbackDataURL(canvas, mime, quality, resolve) {
+    try {
+      const dataUrl = canvas.toDataURL(mime, quality);
+      resolve(dataURItoBlob(dataUrl));
+    } catch (e1) {
+      try {
+        // Fallback sang jpeg chuẩn
+        const jpegUrl = canvas.toDataURL('image/jpeg', 0.92);
+        resolve(dataURItoBlob(jpegUrl));
+      } catch (e2) {
+        console.error('Không thể xuất blob từ canvas:', e2);
+        resolve(null);
+      }
+    }
+  }
+
+  function dataURItoBlob(dataURI) {
+    try {
+      const parts = dataURI.split(',');
+      const byteString = atob(parts[1]);
+      const mimeString = parts[0].split(':')[1].split(';')[0];
+      const ab = new ArrayBuffer(byteString.length);
+      const ia = new Uint8Array(ab);
+      for (let i = 0; i < byteString.length; i++) {
+        ia[i] = byteString.charCodeAt(i);
+      }
+      return new Blob([ab], { type: mimeString });
+    } catch (e) {
+      console.error('dataURItoBlob error:', e);
+      return null;
+    }
   }
 
   function formatOutputName(originalName, index, format) {
@@ -628,19 +742,32 @@
   }
 
   function downloadBlob(blob, filename) {
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    setTimeout(() => {
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-    }, 100);
+    if (!blob) {
+      alert('Không thể tạo file ảnh tải về. Vui lòng thử lại!');
+      return;
+    }
+
+    try {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.style.display = 'none';
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+
+      // Giữ URL 60 giây tránh lỗi bị browser hủy tải sớm
+      setTimeout(() => {
+        if (a.parentNode) a.parentNode.removeChild(a);
+        URL.revokeObjectURL(url);
+      }, 60000);
+    } catch (e) {
+      console.error('downloadBlob error:', e);
+      alert('Trình duyệt chặn tải xuống: ' + e.message);
+    }
   }
 
-  // --- Demo Photography (Ảnh hoạt động tình nguyện mẫu) ---
+  // --- Demo Photography (Ảnh mẫu kiểm tra nhanh) ---
   function loadDemoPhotos() {
     const demos = [
       { name: 'Hoat_Dong_Tinh_Nguyen_Camp.jpg', w: 3000, h: 2000, type: 'event' },
@@ -654,7 +781,6 @@
       const ctx = c.getContext('2d');
 
       if (d.type === 'event') {
-        // Nắng hè tình nguyện rực rỡ
         const grad = ctx.createLinearGradient(0, 0, 0, d.h);
         grad.addColorStop(0, '#2b70c9');
         grad.addColorStop(0.5, '#7bb4f7');
@@ -663,7 +789,6 @@
         ctx.fillStyle = grad;
         ctx.fillRect(0, 0, d.w, d.h);
 
-        // Đồi xanh
         ctx.fillStyle = '#166534';
         ctx.beginPath();
         ctx.moveTo(0, d.h * 0.75);
@@ -674,7 +799,6 @@
         ctx.closePath();
         ctx.fill();
       } else {
-        // Ảnh tập thể dọc ấm cúng
         const grad = ctx.createRadialGradient(d.w * 0.5, d.h * 0.4, 200, d.w * 0.5, d.h * 0.5, d.h * 0.8);
         grad.addColorStop(0, '#3b82f6');
         grad.addColorStop(0.6, '#1e3a8a');
@@ -683,10 +807,36 @@
         ctx.fillRect(0, 0, d.w, d.h);
       }
 
-      c.toBlob(blob => {
-        const file = new File([blob], d.name, { type: 'image/jpeg' });
-        addFiles([file]);
-      }, 'image/jpeg', 0.95);
+      canvasToBlobSafe(c, 'image/jpeg', 0.95).then(blob => {
+        if (!blob) return;
+        const fakeFile = {
+          name: d.name,
+          size: blob.size,
+          type: 'image/jpeg'
+        };
+        const photoObj = {
+          id: 'demo-' + Date.now() + '-' + Math.random().toString(36).substr(2, 6),
+          file: fakeFile,
+          name: d.name,
+          size: blob.size,
+          dataUrl: URL.createObjectURL(blob),
+          img: null,
+          width: d.w,
+          height: d.h
+        };
+
+        const img = new Image();
+        img.onload = () => {
+          photoObj.img = img;
+          renderPreview();
+        };
+        img.src = photoObj.dataUrl;
+
+        state.photos.push(photoObj);
+        updatePhotoQueueState();
+        renderFilmstrip();
+        if (state.photos.length === 1) selectPhoto(0);
+      });
     });
   }
 
@@ -704,10 +854,27 @@
       e.target.value = '';
     });
 
+    if (DOM.btnPickPhotos) {
+      DOM.btnPickPhotos.addEventListener('click', (e) => {
+        e.stopPropagation();
+        DOM.photosInput.click();
+      });
+    }
+
     DOM.btnAddPhotos.addEventListener('click', () => DOM.photosInput.click());
-    DOM.emptyState.addEventListener('click', () => DOM.photosInput.click());
+    DOM.emptyState.addEventListener('click', (e) => {
+      // Tránh click kép nếu người dùng nhấn vào button
+      if (e.target.closest('button')) return;
+      DOM.photosInput.click();
+    });
+
     DOM.btnClearPhotos.addEventListener('click', clearAllPhotos);
-    if (DOM.btnLoadDemo) DOM.btnLoadDemo.addEventListener('click', loadDemoPhotos);
+    if (DOM.btnLoadDemo) {
+      DOM.btnLoadDemo.addEventListener('click', (e) => {
+        e.stopPropagation();
+        loadDemoPhotos();
+      });
+    }
 
     // Drag & Drop
     ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(evt => {
@@ -731,18 +898,22 @@
     });
 
     // Logo change & reset
+    if (DOM.btnTriggerLogoInput) {
+      DOM.btnTriggerLogoInput.addEventListener('click', () => DOM.logoInput.click());
+    }
+
     DOM.logoInput.addEventListener('change', (e) => {
       const file = e.target.files[0];
-      if (file && file.type.startsWith('image/')) {
+      if (file) {
         const url = URL.createObjectURL(file);
         const img = new Image();
-        img.src = url;
         img.onload = () => {
           state.logoImg = img;
           DOM.logoThumbImg.src = url;
           DOM.logoDim.textContent = `${img.naturalWidth} × ${img.naturalHeight}px (Logo tùy chọn)`;
           renderPreview();
         };
+        img.src = url;
       }
       e.target.value = '';
     });

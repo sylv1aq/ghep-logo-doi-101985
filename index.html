@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Đội Tình Nguyện 10/1985 - Trình Đóng Dấu Logo Hàng Loạt</title>
+  <title>Đội Tình nguyện 10/1985 Hội Sinh viên - Trình Đóng Dấu Logo Hàng Loạt</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
@@ -15,10 +15,10 @@
   <!-- Top Header Navigation -->
   <header class="app-header">
     <div class="brand-wrapper">
-      <img src="assets/logo-doi.png" alt="Logo Đội Tình Nguyện 10/1985" class="brand-logo-img">
+      <img src="assets/logo-doi.png" alt="Logo Đội Tình nguyện 10/1985 Hội Sinh viên" class="brand-logo-img">
       <div class="brand-text">
         <span class="brand-team-name">
-          ĐỘI TÌNH NGUYỆN 10/1985
+          ĐỘI TÌNH NGUYỆN 10/1985 HỘI SINH VIÊN
           <span class="brand-star">⭐</span>
         </span>
         <span class="brand-slogan">Trình Đóng Dấu Logo Ảnh Hàng Loạt ✨</span>
@@ -113,11 +113,11 @@
         </div>
         <h3 class="empty-title">Kéo & Thả Ảnh Hoạt Động Vào Đây</h3>
         <p class="empty-desc">
-          Chọn cùng lúc hàng chục, hàng trăm bức ảnh sự kiện của Đội mình.<br>
+          Chọn cùng lúc hàng chục, hàng trăm bức ảnh sự kiện của Đội Tình nguyện 10/1985 Hội Sinh viên.<br>
           Hệ thống sẽ tự động đóng dấu logo chuẩn ở giữa, trên cùng của từng tấm ảnh!
         </p>
         <div style="display: flex; gap: 10px; flex-wrap: wrap; justify-content: center;">
-          <button class="btn btn-accent" onclick="document.getElementById('photos-input').click()">
+          <button class="btn btn-accent" id="btn-pick-photos">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <line x1="12" y1="5" x2="12" y2="19"></line>
               <line x1="5" y1="12" x2="19" y2="12"></line>
@@ -165,16 +165,16 @@
             <div class="logo-team-box">
               <img id="logo-thumb-img" src="assets/logo-doi.png" alt="Logo Đội" class="logo-circle-preview">
               <div class="logo-team-info">
-                <span class="logo-team-title">Đội Tình Nguyện 10/1985</span>
+                <span class="logo-team-title">Đội Tình nguyện 10/1985 Hội Sinh viên</span>
                 <span class="logo-team-subtitle" id="logo-dim">Logo tròn trong suốt chuẩn 100%</span>
                 <div class="logo-action-links">
-                  <button class="btn-link-cute" onclick="document.getElementById('logo-input').click()">Đổi logo khác</button>
+                  <button class="btn-link-cute" id="btn-trigger-logo-input">Đổi logo khác</button>
                   <span style="color: #cbd5e1;">•</span>
                   <button class="btn-link-cute" id="btn-reset-default-logo">Khôi phục mặc định</button>
                 </div>
               </div>
             </div>
-            <input type="file" id="logo-input" accept="image/png,image/jpeg,image/webp,image/svg+xml" style="display: none;">
+            <input type="file" id="logo-input" accept="image/*, .png, .jpg, .jpeg, .webp, .svg" style="display: none;">
           </div>
         </div>
 
@@ -364,10 +364,11 @@
     </div>
   </div>
 
-  <!-- Hidden Photo Input -->
-  <input type="file" id="photos-input" multiple accept="image/jpeg,image/png,image/webp" style="display: none;">
+  <!-- Hidden Photo Input - Chấp nhận mọi định dạng ảnh -->
+  <input type="file" id="photos-input" multiple accept="image/*, .jpg, .jpeg, .png, .webp, .bmp, .heic, .JPG, .JPEG, .PNG" style="display: none;">
 
   <!-- Scripts -->
+  <script src="js/default-logo.js"></script>
   <script src="js/jszip.min.js"></script>
   <script src="js/watermark-engine.js"></script>
   <script src="js/app.js"></script>
