@@ -383,7 +383,8 @@ body {
   pointer-events: auto;
   z-index: 10;
   display: none;
-  border-radius: 50%; /* Tròn như logo của Đội! */
+  border-radius: 8px; /* Tự động đổi theo tỉ lệ trong JS */
+  transition: border-radius 0.15s ease;
 }
 
 .resize-handle {
@@ -702,6 +703,61 @@ body {
   display: flex;
   gap: 8px;
   margin-top: 4px;
+}
+
+.logo-templates-switch {
+  display: flex;
+  gap: 6px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px dashed #d4e5fa;
+}
+
+.btn-template {
+  flex: 1;
+  background-color: #ffffff;
+  border: 1.5px solid #cbd5e1;
+  color: var(--text-dark);
+  font-size: 11px;
+  font-weight: 700;
+  padding: 6px 4px;
+  border-radius: var(--radius-pill);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  font-family: inherit;
+}
+
+.btn-template:hover {
+  background-color: var(--primary-blue-light);
+  border-color: var(--primary-blue);
+  color: var(--primary-blue);
+}
+
+.btn-template.active {
+  background: linear-gradient(135deg, #2b70c9 0%, #1e5ba8 100%);
+  color: #ffffff;
+  border-color: transparent;
+  box-shadow: 0 2px 6px rgba(43, 112, 201, 0.3);
+}
+
+.trim-toggle-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+  font-size: 11.5px;
+  color: var(--text-muted);
+}
+
+.trim-toggle-wrap input[type="checkbox"] {
+  accent-color: var(--primary-blue);
+  width: 14px;
+  height: 14px;
+  cursor: pointer;
 }
 
 .btn-link-cute {

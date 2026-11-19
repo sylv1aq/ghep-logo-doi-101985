@@ -168,36 +168,55 @@
                 <span class="logo-team-title">Đội Tình nguyện 10/1985 Hội Sinh viên</span>
                 <span class="logo-team-subtitle" id="logo-dim">Logo tròn trong suốt chuẩn 100%</span>
                 <div class="logo-action-links">
-                  <button class="btn-link-cute" id="btn-trigger-logo-input">Đổi logo khác</button>
+                  <button class="btn-link-cute" id="btn-trigger-logo-input">Tải logo/banner khác 📁</button>
                   <span style="color: #cbd5e1;">•</span>
-                  <button class="btn-link-cute" id="btn-reset-default-logo">Khôi phục mặc định</button>
+                  <button class="btn-link-cute" id="btn-reset-default-logo">Đặt lại</button>
                 </div>
               </div>
+            </div>
+
+            <!-- Nút chuyển nhanh giữa 2 dạng watermark của Đội -->
+            <div class="logo-templates-switch">
+              <button id="btn-switch-logo" class="btn-template active" title="Dùng logo tròn chuẩn 18% ở giữa trên">
+                🟡 Logo Tròn
+              </button>
+              <button id="btn-switch-banner" class="btn-template" title="Dùng dải banner sóng xanh tràn ngang 100% ở trên cùng">
+                🌊 Dải Banner Sóng
+              </button>
+            </div>
+
+            <!-- Tùy chọn tự động xén khoảng trống trong suốt -->
+            <div class="trim-toggle-wrap">
+              <label>
+                <input type="checkbox" id="toggle-trim-transparent" checked>
+                Tự động cắt viền trống (cho banner/khung)
+              </label>
             </div>
             <input type="file" id="logo-input" accept="image/*, .png, .jpg, .jpeg, .webp, .svg" style="display: none;">
           </div>
         </div>
 
-        <!-- 2. Kích thước Logo (Slider đơn giản & mượt mà) -->
+        <!-- 2. Kích thước Logo (Slider tự do, không giới hạn scale size) -->
         <div class="setting-section">
           <div class="section-header">
-            <span>KÍCH THƯỚC LOGO</span>
+            <span>KÍCH THƯỚC WATERMARK</span>
             <span id="val-scale-badge" class="slider-val-badge">18%</span>
           </div>
           <div class="section-body">
             <div class="slider-container">
-              <input type="range" id="slider-scale" min="6" max="45" step="1" value="18">
+              <input type="range" id="slider-scale" min="5" max="120" step="1" value="18">
             </div>
 
             <!-- Các nút chỉnh nhanh kích thước -->
             <div class="quick-buttons-row">
               <button class="quick-btn" data-scale="12">Nhỏ (12%)</button>
               <button class="quick-btn active" data-scale="18">Vừa (18%)</button>
-              <button class="quick-btn" data-scale="25">Lớn (25%)</button>
-              <button class="quick-btn" data-scale="32">Nổi bật (32%)</button>
+              <button class="quick-btn" data-scale="30">Lớn (30%)</button>
+              <button class="quick-btn" data-scale="50">50%</button>
+              <button class="quick-btn" data-scale="100">⭐ Tràn ngang (100%)</button>
             </div>
             <span style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">
-              💡 Tự động co giãn cân đối tuyệt đối trên mọi độ phân giải ảnh.
+              💡 Đã mở khóa hoàn toàn kích thước: Kéo tự do từ 5% đến 120% bề ngang ảnh.
             </span>
           </div>
         </div>

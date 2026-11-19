@@ -1,6 +1,7 @@
 /**
  * Đội Tình nguyện 10/1985 Hội Sinh viên - Watermark Studio App Logic
  * Xử lý hình ảnh hàng loạt trực tiếp trên trình duyệt máy tính & điện thoại
+ * ĐÃ BỎ TOÀN BỘ GIỚI HẠN SCALE SIZE: hỗ trợ cả Logo tròn lẫn Dải Banner sóng tràn ngang 100%
  */
 
 (function () {
@@ -13,10 +14,11 @@
     showOriginal: false,
     isExporting: false,
     logoImg: null,
+    currentWatermarkType: 'logo', // 'logo' hoặc 'banner'
     
     // Cấu hình watermark chuẩn của Đội Tình nguyện 10/1985 Hội Sinh viên
     watermark: {
-      scale: 18, // 18% kích thước ảnh
+      scale: 18, // 18% kích thước chiều rộng ảnh
       anchor: 'tc', // ⭐ Ở giữa, trên cùng
       insetX: 0,
       insetY: 3.5, // 3.5% khoảng cách từ mép trên
@@ -44,29 +46,34 @@
   // --- Mẫu thiết lập sẵn cho Đội Tình nguyện 10/1985 Hội Sinh viên ---
   const defaultPresets = [
     {
+      id: 'default-banner',
+      name: '🌊 Dải Banner Sóng Xanh (Tràn ngang 100%)',
+      config: { anchor: 'tc', scale: 100, insetX: 0, insetY: 0, rotation: 0, watermarkType: 'banner' }
+    },
+    {
       id: 'default-tc',
-      name: '⭐ Chuẩn Đội: Giữa - Trên cùng (18%)',
-      config: { anchor: 'tc', scale: 18, insetX: 0, insetY: 3.5, rotation: 0 }
+      name: '⭐ Logo Tròn Chuẩn Đội: Giữa - Trên (18%)',
+      config: { anchor: 'tc', scale: 18, insetX: 0, insetY: 3.5, rotation: 0, watermarkType: 'logo' }
     },
     {
       id: 'default-br',
-      name: 'Góc Dưới - Phải (16%)',
-      config: { anchor: 'br', scale: 16, insetX: 3, insetY: 3, rotation: 0 }
+      name: 'Logo Tròn - Góc Dưới Phải (16%)',
+      config: { anchor: 'br', scale: 16, insetX: 3, insetY: 3, rotation: 0, watermarkType: 'logo' }
     },
     {
       id: 'default-bl',
-      name: 'Góc Dưới - Trái (16%)',
-      config: { anchor: 'bl', scale: 16, insetX: 3, insetY: 3, rotation: 0 }
+      name: 'Logo Tròn - Góc Dưới Trái (16%)',
+      config: { anchor: 'bl', scale: 16, insetX: 3, insetY: 3, rotation: 0, watermarkType: 'logo' }
     },
     {
       id: 'default-tr',
-      name: 'Góc Trên - Phải (16%)',
-      config: { anchor: 'tr', scale: 16, insetX: 3, insetY: 3, rotation: 0 }
+      name: 'Logo Tròn - Góc Trên Phải (16%)',
+      config: { anchor: 'tr', scale: 16, insetX: 3, insetY: 3, rotation: 0, watermarkType: 'logo' }
     },
     {
       id: 'default-center',
-      name: 'Logo Lớn Chính Giữa (30%)',
-      config: { anchor: 'mc', scale: 30, insetX: 0, insetY: 0, rotation: 0 }
+      name: 'Logo Tròn - Lớn Chính Giữa (30%)',
+      config: { anchor: 'mc', scale: 30, insetX: 0, insetY: 0, rotation: 0, watermarkType: 'logo' }
     }
   ];
 
@@ -97,14 +104,17 @@
     DOM.presetSelect = document.getElementById('preset-select');
     DOM.btnSavePreset = document.getElementById('btn-save-preset');
 
-    // Logo elements
+    // Logo & Banner elements
     DOM.logoThumbImg = document.getElementById('logo-thumb-img');
     DOM.logoDim = document.getElementById('logo-dim');
     DOM.logoInput = document.getElementById('logo-input');
     DOM.btnTriggerLogoInput = document.getElementById('btn-trigger-logo-input');
     DOM.btnResetDefaultLogo = document.getElementById('btn-reset-default-logo');
+    DOM.btnSwitchLogo = document.getElementById('btn-switch-logo');
+    DOM.btnSwitchBanner = document.getElementById('btn-switch-banner');
+    DOM.toggleTrimTransparent = document.getElementById('toggle-trim-transparent');
 
-    // Size Slider & Quick buttons
+    // Size Slider & Quick buttons (Không còn giới hạn max 45%)
     DOM.sliderScale = document.getElementById('slider-scale');
     DOM.valScaleBadge = document.getElementById('val-scale-badge');
     DOM.quickScaleBtns = document.querySelectorAll('.quick-btn');
@@ -159,8 +169,9 @@
     updatePhotoQueueState();
   }
 
-  // --- Load Team Logo (Dùng Base64 data URI để tránh Tainted Canvas khi chạy file://) ---
+  // --- Load Team Logo (Dùng Base64 data URI tránh Tainted Canvas khi chạy offline) ---
   function loadDefaultTeamLogo() {
+    state.currentWatermarkType = 'logo';
     const logoSrc = (typeof DEFAULT_TEAM_LOGO !== 'undefined' && DEFAULT_TEAM_LOGO) 
       ? DEFAULT_TEAM_LOGO 
       : 'assets/logo-doi.png';
@@ -169,16 +180,95 @@
     img.onload = () => {
       state.logoImg = img;
       if (DOM.logoThumbImg) DOM.logoThumbImg.src = logoSrc;
-      if (DOM.logoDim) DOM.logoDim.textContent = `${img.naturalWidth} × ${img.naturalHeight}px (Đã cắt viền)`;
+      if (DOM.logoDim) DOM.logoDim.textContent = `${img.naturalWidth} × ${img.naturalHeight}px (Logo tròn chuẩn)`;
+      if (DOM.btnSwitchLogo) DOM.btnSwitchLogo.classList.add('active');
+      if (DOM.btnSwitchBanner) DOM.btnSwitchBanner.classList.remove('active');
       renderPreview();
     };
     img.onerror = () => {
-      // Fallback sang file path
       if (img.src !== 'assets/logo-doi.png') {
         img.src = 'assets/logo-doi.png';
       }
     };
     img.src = logoSrc;
+  }
+
+  // --- Load Team Wave Banner (Dải Banner Sóng Xanh 100% Tràn Ngang) ---
+  function loadDefaultTeamBanner() {
+    state.currentWatermarkType = 'banner';
+    const bannerSrc = (typeof DEFAULT_TEAM_BANNER !== 'undefined' && DEFAULT_TEAM_BANNER) 
+      ? DEFAULT_TEAM_BANNER 
+      : 'assets/banner-doi.png';
+
+    const img = new Image();
+    img.onload = () => {
+      state.logoImg = img;
+      if (DOM.logoThumbImg) DOM.logoThumbImg.src = bannerSrc;
+      if (DOM.logoDim) DOM.logoDim.textContent = `${img.naturalWidth} × ${img.naturalHeight}px (Dải banner sóng)`;
+      if (DOM.btnSwitchBanner) DOM.btnSwitchBanner.classList.add('active');
+      if (DOM.btnSwitchLogo) DOM.btnSwitchLogo.classList.remove('active');
+      renderPreview();
+    };
+    img.onerror = () => {
+      if (img.src !== 'assets/banner-doi.png') {
+        img.src = 'assets/banner-doi.png';
+      }
+    };
+    img.src = bannerSrc;
+  }
+
+  // --- Cắt khoảng trống trong suốt xung quanh hình ảnh (Auto-Trim) ---
+  function trimImageCanvas(img) {
+    const w = img.naturalWidth || img.width;
+    const h = img.naturalHeight || img.height;
+    if (!w || !h) return img;
+
+    const c = document.createElement('canvas');
+    c.width = w;
+    c.height = h;
+    const ctx = c.getContext('2d');
+    ctx.drawImage(img, 0, 0);
+
+    try {
+      const imgData = ctx.getImageData(0, 0, w, h);
+      const data = imgData.data;
+      let minX = w, maxX = 0, minY = h, maxY = 0;
+      let hasContent = false;
+
+      for (let y = 0; y < h; y++) {
+        for (let x = 0; x < w; x++) {
+          const alpha = data[(y * w + x) * 4 + 3];
+          if (alpha > 8) {
+            hasContent = true;
+            if (x < minX) minX = x;
+            if (x > maxX) maxX = x;
+            if (y < minY) minY = y;
+            if (y > maxY) maxY = y;
+          }
+        }
+      }
+
+      if (!hasContent) return img;
+
+      // Nếu ảnh đã sát viền sẵn rồi thì giữ nguyên
+      if (minX === 0 && minY === 0 && maxX === w - 1 && maxY === h - 1) {
+        return img;
+      }
+
+      const cropW = maxX - minX + 1;
+      const cropH = maxY - minY + 1;
+      const cropC = document.createElement('canvas');
+      cropC.width = cropW;
+      cropC.height = cropH;
+      cropC.getContext('2d').drawImage(c, minX, minY, cropW, cropH, 0, 0, cropW, cropH);
+
+      const trimmedImg = new Image();
+      trimmedImg.src = cropC.toDataURL('image/png');
+      return trimmedImg;
+    } catch (e) {
+      console.warn('Trim canvas error:', e);
+      return img;
+    }
   }
 
   // --- Presets Management ---
@@ -214,6 +304,12 @@
     const found = state.presets.find(p => p.id === presetId);
     if (!found) return;
 
+    if (found.config.watermarkType === 'banner') {
+      loadDefaultTeamBanner();
+    } else if (found.config.watermarkType === 'logo') {
+      loadDefaultTeamLogo();
+    }
+
     state.watermark = {
       ...state.watermark,
       ...JSON.parse(JSON.stringify(found.config)),
@@ -244,7 +340,7 @@
   function updateUIFromConfig() {
     const wm = state.watermark;
 
-    // Scale slider & badge
+    // Scale slider & badge (Không bị giới hạn)
     DOM.sliderScale.value = wm.scale;
     DOM.valScaleBadge.textContent = `${wm.scale}%`;
     DOM.quickScaleBtns.forEach(btn => {
@@ -272,11 +368,10 @@
     DOM.valRotationBadge.textContent = `${wm.rotation}°`;
   }
 
-  // --- Photo Queue Management (Nhận ảnh an toàn & linh hoạt) ---
+  // --- Photo Queue Management ---
   function addFiles(fileList) {
     if (!fileList || fileList.length === 0) return;
 
-    // Chấp nhận mọi mime type image hoặc đuôi mở rộng file ảnh
     const validFiles = Array.from(fileList).filter(f => {
       if (f.type && f.type.toLowerCase().startsWith('image/')) return true;
       return /\.(jpe?g|png|webp|bmp|gif|tiff?|avif|heic)$/i.test(f.name);
@@ -465,7 +560,6 @@
     const photo = state.photos[state.currentIndex];
     if (!photo) return;
 
-    // Đảm bảo ảnh đã tải xong
     const img = photo.img;
     if (!img || !img.complete || (img.naturalWidth === 0 && img.width === 0)) return;
 
@@ -494,7 +588,7 @@
       return;
     }
 
-    // Vẽ logo của Đội Tình nguyện 10/1985 Hội Sinh viên
+    // Vẽ logo / banner của Đội Tình nguyện 10/1985 Hội Sinh viên
     const metrics = WatermarkEngine.renderWatermark(
       ctx,
       displayW,
@@ -519,9 +613,13 @@
     box.style.width = `${metrics.width}px`;
     box.style.height = `${metrics.height}px`;
     box.style.transform = `rotate(${state.watermark.rotation}deg)`;
+
+    // Tự động bo viền: tròn nếu là logo vuông/tròn, bo chữ nhật nếu là dải banner ngang
+    const aspect = metrics.naturalAspect || 1;
+    box.style.borderRadius = (aspect > 2.2) ? '8px' : '50%';
   }
 
-  // --- Batch Export Engine (Xử lý & Xuất file an toàn tuyệt đối) ---
+  // --- Batch Export Engine ---
   async function startBatchExport(onlyCurrent = false) {
     if (state.photos.length === 0) {
       alert('Vui lòng chọn ít nhất một hình ảnh để xuất!');
@@ -586,10 +684,9 @@
     }
   }
 
-  // --- Xử lý render ảnh ở độ phân giải gốc kèm fallbacks ---
+  // --- Xử lý render ảnh ở độ phân giải gốc ---
   async function processFullResImage(photo) {
     return new Promise((resolve) => {
-      // Đảm bảo image object đã nạp xong
       const onImageReady = (img) => {
         try {
           let finalW = img.naturalWidth || img.width || 1920;
@@ -620,7 +717,7 @@
           // Vẽ ảnh gốc sắc nét
           offCtx.drawImage(img, 0, 0, finalW, finalH);
 
-          // Vẽ logo của Đội Tình nguyện 10/1985 Hội Sinh viên
+          // Vẽ logo / banner chuẩn
           WatermarkEngine.renderWatermark(
             offCtx,
             finalW,
@@ -637,7 +734,6 @@
 
           const quality = (state.exportSettings.quality || 92) / 100;
 
-          // Xuất blob an toàn không lo lỗi canvas
           canvasToBlobSafe(offCanvas, mime, quality).then(blob => {
             resolve(blob);
           });
@@ -658,7 +754,6 @@
         };
         tempImg.src = photo.dataUrl;
 
-        // Timeout 10s đề phòng kẹt
         setTimeout(() => {
           if (!tempImg.complete) {
             console.warn('Timeout tải ảnh:', photo.name);
@@ -669,7 +764,7 @@
     });
   }
 
-  // --- Chuyển đổi Canvas sang Blob an toàn tuyệt đối (Hỗ trợ DataURI Fallback) ---
+  // --- Chuyển đổi Canvas sang Blob an toàn ---
   function canvasToBlobSafe(canvas, mime, quality) {
     return new Promise((resolve) => {
       try {
@@ -678,7 +773,6 @@
             if (blob) {
               resolve(blob);
             } else {
-              // Fallback qua toDataURL
               tryFallbackDataURL(canvas, mime, quality, resolve);
             }
           }, mime, quality);
@@ -697,7 +791,6 @@
       resolve(dataURItoBlob(dataUrl));
     } catch (e1) {
       try {
-        // Fallback sang jpeg chuẩn
         const jpegUrl = canvas.toDataURL('image/jpeg', 0.92);
         resolve(dataURItoBlob(jpegUrl));
       } catch (e2) {
@@ -756,7 +849,6 @@
       document.body.appendChild(a);
       a.click();
 
-      // Giữ URL 60 giây tránh lỗi bị browser hủy tải sớm
       setTimeout(() => {
         if (a.parentNode) a.parentNode.removeChild(a);
         URL.revokeObjectURL(url);
@@ -767,7 +859,7 @@
     }
   }
 
-  // --- Demo Photography (Ảnh mẫu kiểm tra nhanh) ---
+  // --- Demo Photography (Ảnh mẫu sự kiện của Đội) ---
   function loadDemoPhotos() {
     const demos = [
       { name: 'Hoat_Dong_Tinh_Nguyen_Camp.jpg', w: 3000, h: 2000, type: 'event' },
@@ -863,7 +955,6 @@
 
     DOM.btnAddPhotos.addEventListener('click', () => DOM.photosInput.click());
     DOM.emptyState.addEventListener('click', (e) => {
-      // Tránh click kép nếu người dùng nhấn vào button
       if (e.target.closest('button')) return;
       DOM.photosInput.click();
     });
@@ -897,6 +988,32 @@
       }
     });
 
+    // Nút chuyển đổi nhanh giữa Logo Tròn và Dải Banner Sóng
+    if (DOM.btnSwitchLogo) {
+      DOM.btnSwitchLogo.addEventListener('click', () => {
+        loadDefaultTeamLogo();
+        state.watermark.scale = 18;
+        state.watermark.anchor = 'tc';
+        state.watermark.insetY = 3.5;
+        state.watermark.insetX = 0;
+        updateUIFromConfig();
+        renderPreview();
+      });
+    }
+
+    if (DOM.btnSwitchBanner) {
+      DOM.btnSwitchBanner.addEventListener('click', () => {
+        loadDefaultTeamBanner();
+        // Tự động đặt tràn ngang 100% ở trên cùng
+        state.watermark.scale = 100;
+        state.watermark.anchor = 'tc';
+        state.watermark.insetY = 0;
+        state.watermark.insetX = 0;
+        updateUIFromConfig();
+        renderPreview();
+      });
+    }
+
     // Logo change & reset
     if (DOM.btnTriggerLogoInput) {
       DOM.btnTriggerLogoInput.addEventListener('click', () => DOM.logoInput.click());
@@ -906,23 +1023,49 @@
       const file = e.target.files[0];
       if (file) {
         const url = URL.createObjectURL(file);
-        const img = new Image();
-        img.onload = () => {
-          state.logoImg = img;
-          DOM.logoThumbImg.src = url;
-          DOM.logoDim.textContent = `${img.naturalWidth} × ${img.naturalHeight}px (Logo tùy chọn)`;
+        const tempImg = new Image();
+        tempImg.onload = () => {
+          let finalImg = tempImg;
+          // Tự động cắt khoảng trống trong suốt nếu bật toggle
+          if (DOM.toggleTrimTransparent && DOM.toggleTrimTransparent.checked) {
+            finalImg = trimImageCanvas(tempImg);
+          }
+
+          state.logoImg = finalImg;
+          DOM.logoThumbImg.src = finalImg.src;
+          const nw = finalImg.naturalWidth || finalImg.width;
+          const nh = finalImg.naturalHeight || finalImg.height;
+          DOM.logoDim.textContent = `${nw} × ${nh}px (Tùy chọn)`;
+
+          // Nếu ảnh là dạng banner ngang (aspect > 2.2), tự động đặt 100% tràn viền trên
+          const aspect = nw / nh;
+          if (aspect > 2.2) {
+            state.watermark.scale = 100;
+            state.watermark.anchor = 'tc';
+            state.watermark.insetY = 0;
+            state.watermark.insetX = 0;
+            updateUIFromConfig();
+          }
+
+          if (DOM.btnSwitchLogo) DOM.btnSwitchLogo.classList.remove('active');
+          if (DOM.btnSwitchBanner) DOM.btnSwitchBanner.classList.remove('active');
           renderPreview();
         };
-        img.src = url;
+        tempImg.src = url;
       }
       e.target.value = '';
     });
 
     DOM.btnResetDefaultLogo.addEventListener('click', () => {
       loadDefaultTeamLogo();
+      state.watermark.scale = 18;
+      state.watermark.anchor = 'tc';
+      state.watermark.insetY = 3.5;
+      state.watermark.insetX = 0;
+      updateUIFromConfig();
     });
 
-    // Size Slider
+    // Size Slider - ĐÃ BỎ HẾT GIỚI HẠN (5% đến 120%)
     DOM.sliderScale.addEventListener('input', (e) => {
       const val = parseInt(e.target.value, 10);
       state.watermark.scale = val;
@@ -941,6 +1084,14 @@
         DOM.sliderScale.value = s;
         DOM.valScaleBadge.textContent = `${s}%`;
         DOM.quickScaleBtns.forEach(b => b.classList.toggle('active', b === btn));
+        
+        // Nếu chọn 100% tràn ngang, tự động đưa lề về 0 nếu đang ở viền trên
+        if (s >= 95 && state.watermark.anchor === 'tc') {
+          state.watermark.insetY = 0;
+          DOM.sliderInsetY.value = 0;
+          DOM.valInsetYBadge.textContent = '0%';
+        }
+
         renderPreview();
       });
     });
@@ -1071,7 +1222,7 @@
     });
   }
 
-  // --- Interactive Drag on Canvas ---
+  // --- Interactive Drag on Canvas (Không bị chặn giới hạn 45%) ---
   function setupInteractiveDrag() {
     const box = DOM.interactiveBox;
     let isDragging = false;
@@ -1115,8 +1266,10 @@
       } else if (isResizing) {
         const dx = e.clientX - startX;
         const newWidth = Math.max(20, initialWidth + dx);
-        const newScale = Math.round((newWidth / Math.min(canvas.width, canvas.height)) * 100);
-        const clampedScale = Math.max(6, Math.min(45, newScale));
+        
+        // Tỉ lệ theo chiều rộng canvas, cho phép kéo tự do đến 150%
+        const newScale = Math.round((newWidth / canvas.width) * 100);
+        const clampedScale = Math.max(5, Math.min(150, newScale));
         
         state.watermark.scale = clampedScale;
         DOM.sliderScale.value = clampedScale;
