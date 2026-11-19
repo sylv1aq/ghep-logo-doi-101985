@@ -19,6 +19,8 @@
     // Cấu hình watermark chuẩn của Đội Tình nguyện 10/1985 Hội Sinh viên
     watermark: {
       scale: 18, // 18% kích thước chiều rộng ảnh
+      lockAspect: true,
+      scaleH: 18,
       anchor: 'tc', // ⭐ Ở giữa, trên cùng
       insetX: 0,
       insetY: 3.5, // 3.5% khoảng cách từ mép trên
@@ -114,9 +116,14 @@
     DOM.btnSwitchBanner = document.getElementById('btn-switch-banner');
     DOM.toggleTrimTransparent = document.getElementById('toggle-trim-transparent');
 
-    // Size Slider & Quick buttons (Không còn giới hạn max 45%)
+    // Size Slider & Quick buttons (Hoàn toàn tự do không giới hạn)
     DOM.sliderScale = document.getElementById('slider-scale');
     DOM.valScaleBadge = document.getElementById('val-scale-badge');
+    DOM.inputScaleNum = document.getElementById('input-scale-num');
+    DOM.toggleLockAspect = document.getElementById('toggle-lock-aspect');
+    DOM.heightScaleWrap = document.getElementById('height-scale-wrap');
+    DOM.sliderScaleH = document.getElementById('slider-scale-h');
+    DOM.inputScaleHNum = document.getElementById('input-scale-h-num');
     DOM.quickScaleBtns = document.querySelectorAll('.quick-btn');
 
     // Position controls
@@ -340,9 +347,21 @@
   function updateUIFromConfig() {
     const wm = state.watermark;
 
-    // Scale slider & badge (Không bị giới hạn)
-    DOM.sliderScale.value = wm.scale;
-    DOM.valScaleBadge.textContent = `${wm.scale}%`;
+    // Scale slider, input box & badge (Hoàn toàn tự do)
+    if (DOM.sliderScale) DOM.sliderScale.value = Math.min(300, wm.scale);
+    if (DOM.valScaleBadge) DOM.valScaleBadge.textContent = `${wm.scale}%`;
+    if (DOM.inputScaleNum) DOM.inputScaleNum.value = wm.scale;
+
+    // Lock aspect & Height scale
+    const isLocked = (wm.lockAspect !== false);
+    if (DOM.toggleLockAspect) DOM.toggleLockAspect.checked = isLocked;
+    if (DOM.heightScaleWrap) {
+      DOM.heightScaleWrap.style.display = isLocked ? 'none' : 'block';
+    }
+    const scaleH = wm.scaleH !== undefined ? wm.scaleH : wm.scale;
+    if (DOM.sliderScaleH) DOM.sliderScaleH.value = Math.min(300, scaleH);
+    if (DOM.inputScaleHNum) DOM.inputScaleHNum.value = scaleH;
+
     DOM.quickScaleBtns.forEach(btn => {
       const s = parseInt(btn.dataset.scale, 10);
       btn.classList.toggle('active', s === wm.scale);
@@ -1065,25 +1084,72 @@
       updateUIFromConfig();
     });
 
-    // Size Slider - ĐÃ BỎ HẾT GIỚI HẠN (5% đến 120%)
+    // Size Controls - HOÀN TOÀN TỰ DO, KHÔNG GIỚI HẠN (1% đến 500%+)
     DOM.sliderScale.addEventListener('input', (e) => {
       const val = parseInt(e.target.value, 10);
       state.watermark.scale = val;
-      DOM.valScaleBadge.textContent = `${val}%`;
-      DOM.quickScaleBtns.forEach(btn => {
-        btn.classList.toggle('active', parseInt(btn.dataset.scale, 10) === val);
-      });
+      if (state.watermark.lockAspect !== false) {
+        state.watermark.scaleH = val;
+      }
+      updateUIFromConfig();
       renderPreview();
     });
+
+    if (DOM.inputScaleNum) {
+      DOM.inputScaleNum.addEventListener('input', (e) => {
+        let val = parseInt(e.target.value, 10);
+        if (!isNaN(val) && val >= 1) {
+          val = Math.min(1000, val);
+          state.watermark.scale = val;
+          if (state.watermark.lockAspect !== false) {
+            state.watermark.scaleH = val;
+          }
+          updateUIFromConfig();
+          renderPreview();
+        }
+      });
+    }
+
+    if (DOM.toggleLockAspect) {
+      DOM.toggleLockAspect.addEventListener('change', (e) => {
+        state.watermark.lockAspect = e.target.checked;
+        if (!state.watermark.lockAspect && !state.watermark.scaleH) {
+          state.watermark.scaleH = state.watermark.scale;
+        }
+        updateUIFromConfig();
+        renderPreview();
+      });
+    }
+
+    if (DOM.sliderScaleH) {
+      DOM.sliderScaleH.addEventListener('input', (e) => {
+        const val = parseInt(e.target.value, 10);
+        state.watermark.scaleH = val;
+        updateUIFromConfig();
+        renderPreview();
+      });
+    }
+
+    if (DOM.inputScaleHNum) {
+      DOM.inputScaleHNum.addEventListener('input', (e) => {
+        let val = parseInt(e.target.value, 10);
+        if (!isNaN(val) && val >= 1) {
+          val = Math.min(1000, val);
+          state.watermark.scaleH = val;
+          updateUIFromConfig();
+          renderPreview();
+        }
+      });
+    }
 
     // Quick Size Buttons
     DOM.quickScaleBtns.forEach(btn => {
       btn.addEventListener('click', () => {
         const s = parseInt(btn.dataset.scale, 10);
         state.watermark.scale = s;
-        DOM.sliderScale.value = s;
-        DOM.valScaleBadge.textContent = `${s}%`;
-        DOM.quickScaleBtns.forEach(b => b.classList.toggle('active', b === btn));
+        if (state.watermark.lockAspect !== false) {
+          state.watermark.scaleH = s;
+        }
         
         // Nếu chọn 100% tràn ngang, tự động đưa lề về 0 nếu đang ở viền trên
         if (s >= 95 && state.watermark.anchor === 'tc') {
@@ -1092,6 +1158,7 @@
           DOM.valInsetYBadge.textContent = '0%';
         }
 
+        updateUIFromConfig();
         renderPreview();
       });
     });
@@ -1222,38 +1289,54 @@
     });
   }
 
-  // --- Interactive Drag on Canvas (Không bị chặn giới hạn 45%) ---
+  // --- Interactive Drag on Canvas (Tự do 100%, không giới hạn, hỗ trợ 8 tay cầm & cảm ứng điện thoại) ---
   function setupInteractiveDrag() {
     const box = DOM.interactiveBox;
     let isDragging = false;
     let isResizing = false;
-    let startX, startY;
-    let initialLeft, initialTop, initialWidth;
+    let resizeHandle = null;
+    let startX = 0, startY = 0;
+    let initialLeft = 0, initialTop = 0;
+    let initialScale = 18, initialScaleH = 18;
 
-    box.addEventListener('mousedown', (e) => {
+    function getPointerPos(e) {
+      if (e.touches && e.touches.length > 0) {
+        return { clientX: e.touches[0].clientX, clientY: e.touches[0].clientY };
+      }
+      return { clientX: e.clientX, clientY: e.clientY };
+    }
+
+    function onPointerDown(e) {
+      const pos = getPointerPos(e);
+      startX = pos.clientX;
+      startY = pos.clientY;
+
+      initialLeft = parseFloat(box.style.left) || 0;
+      initialTop = parseFloat(box.style.top) || 0;
+      initialScale = state.watermark.scale || 18;
+      initialScaleH = state.watermark.scaleH !== undefined ? state.watermark.scaleH : initialScale;
+
       if (e.target.classList.contains('resize-handle')) {
         isResizing = true;
-        startX = e.clientX;
-        initialWidth = parseFloat(box.style.width);
+        resizeHandle = e.target.dataset.handle || 'se';
       } else {
         isDragging = true;
-        startX = e.clientX;
-        startY = e.clientY;
-        initialLeft = parseFloat(box.style.left);
-        initialTop = parseFloat(box.style.top);
       }
+
       e.stopPropagation();
       e.preventDefault();
-    });
+    }
 
-    window.addEventListener('mousemove', (e) => {
+    function onPointerMove(e) {
       if (!isDragging && !isResizing) return;
       const canvas = DOM.previewCanvas;
       if (!canvas) return;
 
+      const pos = getPointerPos(e);
+      const dx = pos.clientX - startX;
+      const dy = pos.clientY - startY;
+
       if (isDragging) {
-        const dx = e.clientX - startX;
-        const dy = e.clientY - startY;
         const newX = initialLeft + dx;
         const newY = initialTop + dy;
 
@@ -1264,27 +1347,78 @@
         };
         renderPreview();
       } else if (isResizing) {
-        const dx = e.clientX - startX;
-        const newWidth = Math.max(20, initialWidth + dx);
-        
-        // Tỉ lệ theo chiều rộng canvas, cho phép kéo tự do đến 150%
-        const newScale = Math.round((newWidth / canvas.width) * 100);
-        const clampedScale = Math.max(5, Math.min(150, newScale));
-        
-        state.watermark.scale = clampedScale;
-        DOM.sliderScale.value = clampedScale;
-        DOM.valScaleBadge.textContent = `${clampedScale}%`;
-        DOM.quickScaleBtns.forEach(b => {
-          b.classList.toggle('active', parseInt(b.dataset.scale, 10) === clampedScale);
-        });
+        const deltaPctX = (dx / canvas.width) * 100;
+        const deltaPctY = (dy / canvas.height) * 100;
+
+        let newScale = initialScale;
+        let newScaleH = initialScaleH;
+
+        if (resizeHandle === 'se') {
+          const delta = Math.abs(deltaPctX) > Math.abs(deltaPctY) ? deltaPctX : deltaPctY;
+          newScale = Math.round(initialScale + delta);
+          newScaleH = Math.round(initialScaleH + deltaPctY);
+        } else if (resizeHandle === 'nw') {
+          const delta = Math.abs(deltaPctX) > Math.abs(deltaPctY) ? -deltaPctX : -deltaPctY;
+          newScale = Math.round(initialScale + delta);
+          newScaleH = Math.round(initialScaleH - deltaPctY);
+        } else if (resizeHandle === 'ne') {
+          const delta = Math.abs(deltaPctX) > Math.abs(deltaPctY) ? deltaPctX : -deltaPctY;
+          newScale = Math.round(initialScale + delta);
+          newScaleH = Math.round(initialScaleH - deltaPctY);
+        } else if (resizeHandle === 'sw') {
+          const delta = Math.abs(deltaPctX) > Math.abs(deltaPctY) ? -deltaPctX : deltaPctY;
+          newScale = Math.round(initialScale + delta);
+          newScaleH = Math.round(initialScaleH + deltaPctY);
+        } else if (resizeHandle === 'e') {
+          newScale = Math.round(initialScale + deltaPctX);
+        } else if (resizeHandle === 'w') {
+          newScale = Math.round(initialScale - deltaPctX);
+        } else if (resizeHandle === 's') {
+          if (state.watermark.lockAspect !== false) {
+            newScale = Math.round(initialScale + deltaPctY);
+          } else {
+            newScaleH = Math.round(initialScaleH + deltaPctY);
+          }
+        } else if (resizeHandle === 'n') {
+          if (state.watermark.lockAspect !== false) {
+            newScale = Math.round(initialScale - deltaPctY);
+          } else {
+            newScaleH = Math.round(initialScaleH - deltaPctY);
+          }
+        }
+
+        // TỰ DO VÔ TƯ: Không giới hạn trần, cho phép kéo thoải mái từ 1% tới 500%+
+        newScale = Math.max(1, Math.min(500, newScale));
+        newScaleH = Math.max(1, Math.min(500, newScaleH));
+
+        state.watermark.scale = newScale;
+        if (state.watermark.lockAspect !== false) {
+          state.watermark.scaleH = newScale;
+        } else {
+          state.watermark.scaleH = newScaleH;
+        }
+
+        updateUIFromConfig();
         renderPreview();
       }
-    });
+    }
 
-    window.addEventListener('mouseup', () => {
+    function onPointerUp() {
       isDragging = false;
       isResizing = false;
-    });
+      resizeHandle = null;
+    }
+
+    // Chuột trên PC
+    box.addEventListener('mousedown', onPointerDown);
+    window.addEventListener('mousemove', onPointerMove);
+    window.addEventListener('mouseup', onPointerUp);
+
+    // Cảm ứng trên Điện thoại & Tablet
+    box.addEventListener('touchstart', onPointerDown, { passive: false });
+    window.addEventListener('touchmove', onPointerMove, { passive: false });
+    window.addEventListener('touchend', onPointerUp);
+    window.addEventListener('touchcancel', onPointerUp);
   }
 
   document.addEventListener('DOMContentLoaded', init);

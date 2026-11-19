@@ -97,11 +97,15 @@
           <canvas id="preview-canvas"></canvas>
 
           <!-- Interactive Bounding Box on Canvas -->
-          <div id="watermark-interactive-box" class="watermark-interactive-box" title="Kéo để đổi vị trí, kéo góc để phóng to/thu nhỏ">
-            <div class="resize-handle handle-nw"></div>
-            <div class="resize-handle handle-ne"></div>
-            <div class="resize-handle handle-se"></div>
-            <div class="resize-handle handle-sw"></div>
+          <div id="watermark-interactive-box" class="watermark-interactive-box" title="Kéo để đổi vị trí, kéo các góc/cạnh để phóng to thu nhỏ tự do">
+            <div class="resize-handle handle-nw" data-handle="nw" title="Kéo góc trên trái"></div>
+            <div class="resize-handle handle-ne" data-handle="ne" title="Kéo góc trên phải"></div>
+            <div class="resize-handle handle-se" data-handle="se" title="Kéo góc dưới phải"></div>
+            <div class="resize-handle handle-sw" data-handle="sw" title="Kéo góc dưới trái"></div>
+            <div class="resize-handle handle-n" data-handle="n" title="Kéo cạnh trên"></div>
+            <div class="resize-handle handle-s" data-handle="s" title="Kéo cạnh dưới"></div>
+            <div class="resize-handle handle-w" data-handle="w" title="Kéo cạnh trái"></div>
+            <div class="resize-handle handle-e" data-handle="e" title="Kéo cạnh phải"></div>
           </div>
         </div>
       </div>
@@ -196,27 +200,58 @@
           </div>
         </div>
 
-        <!-- 2. Kích thước Logo (Slider tự do, không giới hạn scale size) -->
+        <!-- 2. Kích thước Watermark (Tự do vô tư 100%, không giới hạn) -->
         <div class="setting-section">
           <div class="section-header">
             <span>KÍCH THƯỚC WATERMARK</span>
-            <span id="val-scale-badge" class="slider-val-badge">18%</span>
+            <div style="display: flex; align-items: center; gap: 4px;">
+              <input type="number" id="input-scale-num" class="input-scale-box" min="1" max="500" value="18" title="Nhập số % bất kỳ">
+              <span style="font-size: 12px; font-weight: 700; color: var(--team-yellow);">%</span>
+            </div>
           </div>
           <div class="section-body">
+            <div class="form-row" style="margin-bottom: 4px;">
+              <span class="form-label">Chiều rộng (% ảnh):</span>
+              <span id="val-scale-badge" class="slider-val-badge">18%</span>
+            </div>
             <div class="slider-container">
-              <input type="range" id="slider-scale" min="5" max="120" step="1" value="18">
+              <input type="range" id="slider-scale" min="1" max="300" step="1" value="18">
+            </div>
+
+            <!-- Tùy chọn Mở khóa tỷ lệ Rộng / Cao -->
+            <div class="aspect-toggle-wrap" style="margin: 8px 0 6px 0;">
+              <label style="display: flex; align-items: center; gap: 6px; font-size: 11.5px; cursor: pointer; color: #cbd5e1;">
+                <input type="checkbox" id="toggle-lock-aspect" checked>
+                <span>Khóa tỷ lệ (Rộng & Cao giữ nguyên dáng)</span>
+              </label>
+            </div>
+
+            <!-- Slider Chiều cao riêng (Hiển thị khi mở khóa tỷ lệ) -->
+            <div id="height-scale-wrap" class="form-group" style="display: none; margin-top: 6px; background: rgba(15, 23, 42, 0.4); padding: 8px; border-radius: 8px;">
+              <div class="form-row">
+                <span class="form-label">Chiều cao riêng (% ảnh):</span>
+                <div style="display: flex; align-items: center; gap: 4px;">
+                  <input type="number" id="input-scale-h-num" class="input-scale-box" min="1" max="500" value="18">
+                  <span style="font-size: 11px; font-weight: 700; color: var(--team-yellow);">%</span>
+                </div>
+              </div>
+              <div class="slider-container" style="margin-top: 4px;">
+                <input type="range" id="slider-scale-h" min="1" max="300" step="1" value="18">
+              </div>
             </div>
 
             <!-- Các nút chỉnh nhanh kích thước -->
             <div class="quick-buttons-row">
-              <button class="quick-btn" data-scale="12">Nhỏ (12%)</button>
-              <button class="quick-btn active" data-scale="18">Vừa (18%)</button>
-              <button class="quick-btn" data-scale="30">Lớn (30%)</button>
+              <button class="quick-btn" data-scale="10">10%</button>
+              <button class="quick-btn active" data-scale="18">18% (Chuẩn)</button>
+              <button class="quick-btn" data-scale="30">30%</button>
               <button class="quick-btn" data-scale="50">50%</button>
-              <button class="quick-btn" data-scale="100">⭐ Tràn ngang (100%)</button>
+              <button class="quick-btn" data-scale="100">⭐ 100% Tràn ngang</button>
+              <button class="quick-btn" data-scale="150">150%</button>
+              <button class="quick-btn" data-scale="200">200%</button>
             </div>
-            <span style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">
-              💡 Đã mở khóa hoàn toàn kích thước: Kéo tự do từ 5% đến 120% bề ngang ảnh.
+            <span style="font-size: 11px; color: var(--text-muted); margin-top: 4px;">
+              💡 Kéo vô tư từ 1% đến 300%+, kéo 8 tay cầm trên ảnh xem trước hoặc nhập % bất kỳ!
             </span>
           </div>
         </div>
